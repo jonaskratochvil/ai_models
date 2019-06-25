@@ -37,11 +37,6 @@ class Reinforce():
                        'gradient_step' : 0}
 
     def train_epoch(self, num_trajectories=4, render=True):
-        """Collect num_trajectories and do vanilla policy gradient update
-
-        :param num_trajectories: How many runs in the environment
-        :param render: Visualize the trajectories(slow)
-        """
 
         # collect data
         trajectories = [self.collect_trajectory(render)
@@ -54,23 +49,14 @@ class Reinforce():
         self.logger['gradient_step'] = self._gradient_update(states, actions, returns, num_trajectories)
         self.logger['average_return'] = np.average(total_rewards)
 
-    #@tf.function - needs some tinkering
+    #@tf.function - yells at me for some reason
     def _gradient_update(self, states, actions, returns, num_trajectories):
-        """The policy batch gradient update
-
-        :param states:
-        :param actions:
-        :param returns:
-        :param num_trajectories:
-        :return: global norm of the network gradient
-        """
 
         with tf.GradientTape() as tape:
             probs = tf.boolean_mask(self.model(states), tf.one_hot(actions,self.actions_shape))
             target = -1/num_trajectories * tf.reduce_sum(tf.math.log(probs) * returns) # use minus and use gradient descent
 
         gradients = tape.gradient(target, self.model.variables)
-        # PG update is typicaly sensitive to reward sizes - clipping avoids policy oscillations
         if self.clipping:
             gradients = [tf.clip_by_value(grad, -self.clipping, self.clipping)
                          for grad in gradients]
@@ -80,11 +66,6 @@ class Reinforce():
         return tf.linalg.global_norm(gradients)
 
     def collect_trajectory(self, render=False):
-        """Collect one run in the environment
-
-        :param render: Visualize the trajectory (slow)
-        :return: states, actions, rewards_to_go, total_rewards
-        """
 
         s, a ,r = [], [], []
         done = False
@@ -109,11 +90,6 @@ class Reinforce():
 
     @staticmethod
     def reward_to_go(r):
-        """How much total reward is received after each time step
-
-        :param r: collected rewards
-        :return: rewards-to-go
-        """
         return np.cumsum(r[::-1])[::-1]
 
     def policy(self, state):
@@ -128,10 +104,9 @@ class Reinforce():
 if __name__ == '__main__':
     env = gym.make('CartPole-v0')
 
-    agent = Reinforce(env, [32], clip_norm=False)#
+    agent = Reinforce(env, [32], clip_norm=False)#, logdir=logdir)
     epochs, trajectories = 100, 32 # trajectories per epoch. Ie batch size
-    render_each = 10 # render each 10-th epoch
 
     for epoch in range(epochs):
-        agent.train_epoch(32, render= not (epoch % render_each))
+        agent.train_epoch(32, render=False)
         agent.print_log()
