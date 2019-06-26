@@ -7,4 +7,4 @@ To run the models, please install the following dependencies:
 2. gym
 3. numpy
 
-The code should run properlu under python 3.6
+The code should run properly under python 3.6
