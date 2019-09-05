@@ -99,12 +99,34 @@ class WaveNet(nn.Module):
 
 
 if __name__ == '__main__':
+    from audio_dataset import PianoDataset
+    from torchaudio.transforms import MuLawEncoding
 
+    dilations = [2**i for j in range(5) for i in range(100)]
+    net = WaveNet(filters=256,
+                  kernel_size=2,
+                  dilations=dilations,
+                  categories=256)
+
+    print(net.receptive_field/24000)
+
+    dataset = PianoDataset('/Users/vainerj/PianoDataset', download=False,
+                           transforms_on_creation=[MuLawEncoding(quantization_channels=256)])
+
+    audio, _, _ = dataset[1]
+    # takes really long time for even 2 minutes of audio
+    # -> preprocess during dataset creation? Use sparse tensors?
+    oh = F.one_hot(audio[0], num_classes=256)
+    print('starting forward...')
+    oh = oh.unsqueeze(0).permute(0,2,1) # add batch dimension
+    net(oh)
+
+    """
     x = torch.randn(1, 2, 10)
     dilations = [2**i for i in range(4)]
     net = WaveNet(2,2,dilations, 2)
     net.generate(x, 3)
-
+    """
 
 
 
