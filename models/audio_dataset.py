@@ -3,10 +3,11 @@ import torch.utils.data as data
 from torchaudio.transforms import MuLawEncoding
 import os
 import os.path
-import shutil
 import errno
 import torch
 import torchaudio
+
+from models.utils import random_chunks
 
 AUDIO_EXTENSIONS = [
     '.wav', '.mp3', '.flac', '.sph', '.ogg', '.opus',
@@ -17,18 +18,23 @@ AUDIO_EXTENSIONS = [
 2. Enable recreation of `processed` from raw data.
 3. Cut audios into pieces of reasonable length (a couple seconds)
     - otherwise, feeding one audio might take hours
+4. Refactor into two classes - PianoDataset(Provides interface to preprocessed data) and 
+                               DatasetCreator(downloads and preprocesses)
+5. Clean imports
 """
-
 
 
 def is_audio_file(filename):
     return any(filename.endswith(extension) for extension in AUDIO_EXTENSIONS)
 
+
 def audio_files(dir):
     return[os.path.join(dir, audio) for audio in os.listdir(dir) if is_audio_file(audio)]
 
+
 def read_audio(fp, downsample=False):
     """Return first audio channel."""
+    # FIXME: Test downsampling
     if downsample:
         E = torchaudio.sox_effects.SoxEffectsChain()
         E.set_input_file(fp)
@@ -67,7 +73,18 @@ class PianoDataset(data.Dataset):
     dset_path = 'VCTK-Corpus'
 
     def __init__(self, root, downsample=False, transform=None, target_transform=None, download=False,
-                 transforms_on_creation=None):
+                 transforms_on_creation=None, min_audio_length=5, max_audio_length=15):
+        """
+
+        :param root:
+        :param downsample:
+        :param transform:
+        :param target_transform:
+        :param download:
+        :param transforms_on_creation:
+        :param min_length: Minimum processed audio length in seconds
+        :param max_length: Maximum processed audio length in seconds
+        """
         self.root = root
         self.downsample = downsample
         self.transform = transform
@@ -78,6 +95,8 @@ class PianoDataset(data.Dataset):
         self.chunk_size = 10
         self.num_samples = 0
         self.max_len = 0
+        self.min_audio_length = min_audio_length
+        self.max_audio_length = max_audio_length
         self.cached_pt = 0
 
         if download:
@@ -185,14 +204,18 @@ class PianoDataset(data.Dataset):
             st_idx = n * self.chunk_size
             end_idx = st_idx + self.chunk_size
             for i, f in enumerate(audios[st_idx:end_idx]):
-                sig = read_audio(f, downsample=self.downsample)[0]
+                sig, sample_rate = read_audio(f, downsample=self.downsample)[0]
 
                 if self.transforms_on_creation is not None:
                     for transform in self.transforms_on_creation:
                         sig = transform(sig)
 
-                tensors.append(sig)
-                lengths.append(sig.size(1))
+                print(sig)
+                sig = random_chunks(sig, self.min_audio_length, self.max_audio_length)
+                print(sig)
+
+                tensors += sig
+                lengths += [len(s) for s in sig]
                 song_names.append(f)
                 self.max_len = max(self.max_len, sig.size(1))
 
@@ -210,6 +233,7 @@ class PianoDataset(data.Dataset):
         self._write_info((n * self.chunk_size) + i + 1)
         torchaudio.shutdown_sox()
         print('Done!')
+
 
 if __name__ == '__main__':
 

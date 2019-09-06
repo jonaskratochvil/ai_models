@@ -99,7 +99,7 @@ class WaveNet(nn.Module):
 
 
 if __name__ == '__main__':
-    from audio_dataset import PianoDataset
+    from models.audio_dataset import PianoDataset
     from torchaudio.transforms import MuLawEncoding
 
     dilations = [2**i for j in range(5) for i in range(100)]
