@@ -51,18 +51,18 @@ def read_audio(fp, downsample=False):
 
 
 class PianoDataset(data.Dataset):
-    r"""Small Piano MIDI created dataset scrapped from `http://www.piano-midi.de/mp3.htm`
+    r"""Small Piano MIDI created data scrapped from `http://www.piano-midi.de/mp3.htm`
 
     Args:
-        root (str): Root directory of dataset where ``processed/training.pt``
+        root (str): Root directory of data where ``processed/training.pt``
             and  ``processed/test.pt`` exist.
         downsample (bool, optional): Whether to downsample the signal (Default: ``True``)
         transform (Callable, optional): A function/transform that takes in an raw audio
             and returns a transformed version. E.g, ``transforms.Spectrogram``. (Default: ``None``)
         target_transform (callable, optional): A function/transform that takes in the
             target and transforms it. (Default: ``None``)
-        download (bool, optional): If true, downloads the dataset from the internet and
-            puts it in root directory. If dataset is already downloaded, it is not
+        download (bool, optional): If true, downloads the data from the internet and
+            puts it in root directory. If data is already downloaded, it is not
             downloaded again. (Default: ``True``)
         dev_mode(bool, optional): If true, clean up is not performed on downloaded
             files.  Useful to keep raw audio and transcriptions. (Default: ``False``)
@@ -243,6 +243,6 @@ if __name__ == '__main__':
                            transforms_on_creation=[MuLawEncoding(quantization_channels=256)])
     audio, _, _ = dataset[1]
     # takes really long time for even 2 minutes of audio
-    # -> preprocess during dataset creation? Use sparse tensors?
+    # -> preprocess during data creation? Use sparse tensors?
     oh = F.one_hot(audio[0], num_classes=256)
     print(oh)
