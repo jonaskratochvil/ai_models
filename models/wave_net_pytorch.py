@@ -11,6 +11,8 @@ import tensorflow.python.util.deprecation as deprecation
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 from tensorflow.keras.utils import Progbar
 
+from utils.utils import TensorQueue
+
 
 # jak jsou organizovane batche v torch?
 # N - batch size
@@ -24,19 +26,20 @@ class WaveBlock(nn.Module):
     def __init__(self, filters,kernel_size, dilation_rate):
         super(WaveBlock, self).__init__()
 
-        # pad left, right, top, bottom
+        # pad left, right, top, bottom - False in case we want to do fast generation
         self.pad = nn.ZeroPad2d((dilation_rate * (kernel_size - 1), 0, 0, 0))
         # how many input features, how many output features
         self.filter = nn.Conv1d(filters, filters, kernel_size, dilation=dilation_rate)
         self.gate = nn.Conv1d(filters, filters, kernel_size, dilation=dilation_rate)
         self.conv1x1 = nn.Conv1d(filters, filters, 1)
 
-    def forward(self, x):
+    def forward(self, x, pad=True):
         # x has (batch_size, channels, time)
         # ie one sample is a matrix, where each column is next time step and each row is a feature
         # Convolution runs from left to right
 
-        x = self.pad(x)
+        if pad:
+            x = self.pad(x)
         x = self.filter(x) * self.gate(x)
         x = self.conv1x1(x)
         return x
@@ -46,6 +49,7 @@ class WaveNet(nn.Module):
     def __init__(self, filters, kernel_size, dilations, categories, device='cpu'):
         super(WaveNet, self).__init__()
 
+        self.pad = nn.ZeroPad2d((1 * (kernel_size - 1), 0, 0, 0)) # pad beforeinput_conv
         self.input_conv = nn.Conv1d(categories, filters, kernel_size,1)
         # ModuleList needed - is detected by .cuda() and .to() command
         self.blocks = nn.ModuleList([WaveBlock(filters, kernel_size,d)
@@ -68,6 +72,7 @@ class WaveNet(nn.Module):
 
     def forward(self, x, probs=False, temperature=1):
 
+        x = self.pad(x)
         flow = self.input_conv(x)
         out = 0
         for block in self.blocks:
@@ -129,9 +134,15 @@ class WaveNet(nn.Module):
         # so far returns one-hot encoded outputs
         return result
 
-    def generate_faster(selfx, timesteps, temperature=1):
+    def generate_faster(self, x,  timesteps, temperature=1):
         # generate by caching already computed activations stored in layerwise queues.
+
+        # At each `layer` we need to store `layer.dilation` items
+        queues = [TensorQueue(max_size) for max_size in self.dilations]
+        # TODO: split model forward computation into smaller pieces - flow_forward(flow_from_previous_layer, block)
+        # TODO: Push flows to queues and use them to iteratively generate outputs
         raise NotImplementedError
+
 
     @property
     def receptive_field(self):
