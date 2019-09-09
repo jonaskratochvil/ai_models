@@ -47,7 +47,7 @@ class WaveNet(nn.Module):
         super(WaveNet, self).__init__()
 
         self.input_conv = nn.Conv1d(categories, filters, kernel_size,1)
-        # ModuleList needed - is detected by cuda() command
+        # ModuleList needed - is detected by .cuda() and .to() command
         self.blocks = nn.ModuleList([WaveBlock(filters, kernel_size,d)
                                      for d in dilations])
 
@@ -55,6 +55,7 @@ class WaveNet(nn.Module):
         self.conv1 = nn.Conv1d(filters, filters, 1)
         self.conv2 = nn.Conv1d(filters, categories, 1)
         # softmax over rows - for each timestep a separate softmax
+        # used only optionally in forward
         self.softmax = nn.Softmax(dim=1)
 
         self.dilations = dilations
@@ -65,7 +66,7 @@ class WaveNet(nn.Module):
         self.to(device)
         print('Sending network to ', device)
 
-    def forward(self, x, temperature=1):
+    def forward(self, x, probs=False, temperature=1):
 
         flow = self.input_conv(x)
         out = 0
@@ -82,11 +83,12 @@ class WaveNet(nn.Module):
         if not self.training:
             out = out / temperature
 
-        out = self.softmax(out)
+        if probs:
+            out = self.softmax(out)
         return out
 
-    def train_net(self, data, epochs):
-        criterion = nn.CrossEntropyLoss()
+    def train_net(self, dataset, epochs):
+        criterion = nn.CrossEntropyLoss()  # only accepts logits!
         optimizer = optim.SGD(self.parameters(), lr=0.001, momentum=0.9)
 
         for epoch in range(epochs):
@@ -95,9 +97,10 @@ class WaveNet(nn.Module):
             prgbar = Progbar(len(data_loader))
             for i, data in enumerate(data_loader):
                 inputs, targets = data[0].to(self.device), data[1].to(self.device)
+                print(inputs.shape, targets.shape)
 
                 optimizer.zero_grad()  # zero the parameter gradients
-                outputs = net(inputs)
+                outputs = net(inputs, probs=False)  # output logits
                 loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()
@@ -119,7 +122,7 @@ class WaveNet(nn.Module):
         result = result.float().to(self.device)
 
         for i in range(input_len, input_len + timesteps):
-            distrib = self.forward(result[:, :, :i], temperature=temperature)[0, :, -1]
+            distrib = self.forward(result[:, :, :i], probs=True, temperature=temperature)[0, :, -1]
             result[:, :, i] = F.one_hot(torch.multinomial(distrib, 1),
                                         self.categories)
 
