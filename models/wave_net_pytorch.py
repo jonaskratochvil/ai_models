@@ -33,16 +33,19 @@ class WaveBlock(nn.Module):
         self.gate = nn.Conv1d(filters, filters, kernel_size, dilation=dilation_rate)
         self.conv1x1 = nn.Conv1d(filters, filters, 1)
 
-    def forward(self, x, pad=True):
+    def forward(self, flow, pad=True):
         # x has (batch_size, channels, time)
         # ie one sample is a matrix, where each column is next time step and each row is a feature
         # Convolution runs from left to right
 
         if pad:
-            x = self.pad(x)
-        x = self.filter(x) * self.gate(x)
-        x = self.conv1x1(x)
-        return x
+            flow = self.pad(flow)
+
+        out = self.filter(flow) * self.gate(flow)
+        out = self.conv1x1(out)
+        # return flow output added to flow (residual connection) to form flow to he next block
+        # return also out, which goes directly to output layer
+        return flow + out, out
 
 
 class WaveNet(nn.Module):
@@ -74,23 +77,22 @@ class WaveNet(nn.Module):
 
         x = self.pad(x)
         flow = self.input_conv(x)
-        out = 0
+        out_layer = 0
         for block in self.blocks:
-            conv = block(flow)
-            out += conv
-            flow += conv
+            flow, block_out = block(flow)
+            out_layer += block_out
 
-        out = self.activation(out)
-        out = self.conv1(out)
-        out = self.activation(out)
-        out = self.conv2(out)
+        out_layer = self.activation(out_layer)
+        out_layer = self.conv1(out_layer)
+        out_layer = self.activation(out_layer)
+        out_layer = self.conv2(out_layer)
 
         if not self.training:
-            out = out / temperature
+            out_layer = out_layer / temperature
 
         if probs:
-            out = self.softmax(out)
-        return out
+            out_layer = self.softmax(out_layer)
+        return out_layer
 
     def train_net(self, dataset, epochs):
         criterion = nn.CrossEntropyLoss()  # only accepts logits!
