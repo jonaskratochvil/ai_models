@@ -95,7 +95,7 @@ class PianoDataset(data.Dataset):
         #    target = self.target_transform(audio)
 
         # inputs, targets
-        return audios, targets[:, 1:]
+        return audios[:, :, :-1], targets[:, 1:]
 
     def __len__(self):
         return self.num_samples
