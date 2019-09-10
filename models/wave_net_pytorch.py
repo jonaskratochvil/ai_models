@@ -6,11 +6,6 @@ import torch.optim as optim               # optimizers e.g. gradient descent, AD
 import torch
 from torch.utils.data.dataloader import DataLoader
 
-# FIXME: This sucks. - simply copy the code to my utils..
-import tensorflow.python.util.deprecation as deprecation
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-from tensorflow.keras.utils import Progbar
-
 from utils.utils import TensorQueue
 
 
@@ -94,6 +89,7 @@ class WaveNet(nn.Module):
         :return:
         """
 
+        x.to(self.device) # send input to device
         if capture_flows:
             flows=[]
 
@@ -153,7 +149,7 @@ class WaveNet(nn.Module):
         for epoch in range(epochs):
             data_loader = iter(DataLoader(dataset, batch_size=None, num_workers=1))
             running_loss = 0.0
-            prgbar = Progbar(len(data_loader))
+            #prgbar = Progbar(len(data_loader))
             for i, data in enumerate(data_loader):
                 inputs, targets = data[0].to(self.device), data[1].to(self.device)
                 print(inputs.shape, targets.shape)
@@ -166,7 +162,7 @@ class WaveNet(nn.Module):
 
                 # print statistics
                 running_loss += loss.item()
-                prgbar.update(i)
+                #prgbar.update(i)
 
             # FIXME: reportuje porad ten samy loss - co je blbe?
             print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 330))
