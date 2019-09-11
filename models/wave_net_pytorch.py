@@ -21,7 +21,7 @@ class WaveBlock(nn.Module):
     def __init__(self, filters, kernel_size, dilation_rate):
         super(WaveBlock, self).__init__()
 
-        # pad left, right, top, bottom - False in case we want to do fast generation
+        # padding in time dimension
         self.pad = nn.ZeroPad2d((dilation_rate * (kernel_size - 1), 0, 0, 0))
         # how many input features, how many output features
         self.filter = nn.Conv1d(filters, filters, kernel_size, dilation=dilation_rate)
@@ -33,9 +33,7 @@ class WaveBlock(nn.Module):
         # ie one sample is a matrix, where each column is next time step and each row is a feature
         # Convolution runs from left to right
 
-        if pad:
-            padded_flow = self.pad(flow)
-
+        padded_flow = self.pad(flow) if pad else flow
         out = self.filter(padded_flow) * self.gate(padded_flow)
         out = self.conv1x1(out) # should not need padding
         # return flow output added to flow (residual connection) to form flow to he next block
@@ -43,7 +41,7 @@ class WaveBlock(nn.Module):
         if pad:
             return flow + out, out
         else:
-            return flow[-len(out):] + out, out
+            return flow[...,out.shape[-1]:] + out, out
 
 
 class WaveNet(nn.Module):
@@ -96,6 +94,7 @@ class WaveNet(nn.Module):
         x = self.pad(x)
         flow = self.input_conv(x)
 
+        # append also input_conv output
         if capture_flows:
             flows.append(flow)
 
@@ -120,28 +119,6 @@ class WaveNet(nn.Module):
         else:
             return out
 
-    def forward_flows(self, x, probs=False):
-        """Return flow from each layer
-        """
-
-        flows = []
-        x = self.pad(x)
-        flows.append(self.input_conv(x))
-        out_layer = 0
-        for i, block in enumerate(self.blocks):
-            flow, block_out = block(flows[-1])
-            out_layer += block_out
-            flows.append(flow)
-
-        out_layer = self.activation(out_layer)
-        out_layer = self.conv1(out_layer)
-        out_layer = self.activation(out_layer)
-        out_layer = self.conv2(out_layer)
-
-        if probs:
-            out_layer = self.softmax(out_layer)
-        return flows, out_layer
-
     def train_net(self, dataset, epochs):
         criterion = nn.CrossEntropyLoss()  # only accepts logits!
         optimizer = optim.SGD(self.parameters(), lr=0.001, momentum=0.9)
@@ -152,12 +129,12 @@ class WaveNet(nn.Module):
             #prgbar = Progbar(len(data_loader))
             for i, data in enumerate(data_loader):
                 inputs, targets = data[0].to(self.device), data[1].to(self.device)
-                print(inputs.shape, targets.shape)
 
                 optimizer.zero_grad()  # zero the parameter gradients
                 outputs = net(inputs, probs=False)  # output logits
                 loss = criterion(outputs, targets)
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.parameters(), 1)
                 optimizer.step()
 
                 # print statistics
@@ -168,25 +145,23 @@ class WaveNet(nn.Module):
             print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 330))
 
     def one_hot(self, x: list):
-        """
+        """One hot encode x, cast to FloatTensor
 
         Each item in x should be a list of integers.
         All lists should have the same length.
         :param x: 2D tensor or list of lists
         :return: 3D tensor
         """
-        return F.one_hot(torch.Tensor(x), self.categories)
+        return F.one_hot(torch.as_tensor(x), self.categories).type(torch.FloatTensor)
 
-    def generate(self, x, timesteps, temperature=1):
-        # x is a 2d array (no batch dimension) TODO: x should simply be a list of integers..
+    def generate(self, x: list, timesteps, temperature=1):
+        # x a list of integers
 
-        input_len = x.shape[-1]
-
-        result = torch.empty(1, self.categories, timesteps + input_len)
-        result[:, :, 0:x.shape[-1]] = x
+        result = torch.empty(1, self.categories, timesteps + len(x))
+        result[0, :, 0:len(x)] = self.one_hot(x).unsqueeze(0).permute(0,2,1)
         result = result.float().to(self.device)
 
-        for i in range(input_len, input_len + timesteps):
+        for i in range(len(x), len(x) + timesteps):
             distrib = self.forward(result[:, :, :i], probs=True, temperature=temperature)[0, :, -1]
             result[:, :, i] = F.one_hot(torch.multinomial(distrib, 1),
                                         self.categories)
@@ -194,66 +169,34 @@ class WaveNet(nn.Module):
         # so far returns one-hot encoded outputs
         return result
 
-    def generate_faster(self, x,  timesteps, temperature=1):
-        """Generate by caching already computed activations stored in layerwise queues.
-
-        X should be a 2D list of integers [[1,2,3,4]] - a list containing one list
-        :param x: List of integers
-        :param timesteps:
-        :param temperature:
-        :return:
-        """
-
-        inputs = self.one_hot(x)
-
-        # At each `layer` we need to store `layer.dilation` items
-        queues = [TensorQueue(max_size) for max_size in self.dilations]
-        # for outputs we only need to save the current timestep - 1x1 convolutions
-        flows, out = self.forward_flows(inputs, probs=True)
-
-        # push flows to queues
-        for q, f in zip(queues, flows):
-            q.push(f)
-
-        outputs = []
-        for t in range(timesteps):
-            output = 0
-            new_input = self.one_hot(torch.multinomial(out, 1))
-            outputs.append(new_input)
-            inputs = torch.cat((inputs, new_input)) # generate next input from out (out is a distribution)
-            flow = self.input_conv(inputs[-self.kernel_size:]) # no dilation on input!
-            for q, block in zip(queues, self.blocks):
-                poped = q.push(flow)
-                flow, o = block(torch.cat((poped, flow)))
-                output += o # should be output for a single time step
-            output = self.output_layer(output)
-            out = self.softmax(output)
-
-        return outputs
-
     @property
     def receptive_field(self):
         return sum(self.dilations)+1
 
+
 class WaveGenerator:
 
     def __init__(self, wave_net: WaveNet, x: list):
-        self.net = WaveNet
-        inputs = self.net.one_hot(x) # tohle je trochu prasarna - poladit
+        # TODO: send everything to the correct device
 
-        # At each `layer` we need to store `layer.dilation` items
-        self.queues = [TensorQueue(max_size) for max_size in self.net.dilations]
-        self.inputs_queue = TensorQueue(1)
+        self.net = wave_net
+        inputs = self.net.one_hot(x).unsqueeze(0).permute(0,2,1) # tohle je trochu prasarna - poladit - nechceme davat one-hot uz z venku?
 
-        # for outputs we only need to save the current timestep - 1x1 convolutions
-        flows, out = self.net.forward_flows(inputs, probs=True)
-        out = out[-1] #  FIXME: tady bude problem s dimenzionalitou
+        self.inputs_queue = TensorQueue(2)
+        self.inputs_queue.push(inputs[..., -1:])
 
-        # push flows to queues
-        for q, f in zip(self.queues, flows):
-            q.push(f)
+        distrib, flows = self.net.forward(inputs, probs=True, capture_flows=True)
+        distrib = distrib[0, :, -1]  # 1D tensor, for outputs we only need to save the current timestep - 1x1 convolutions
 
-        self.out = self._sample_next(out)
+        self.queues = []
+        for f, d in zip(flows, self.net.dilations):
+
+            if d+1 - f.shape[-1] > 0:
+                f = nn.ZeroPad2d((d+1 - f.shape[-1], 0, 0, 0))(f)
+            self.queues.append(TensorQueue(d+1))
+            self.queues[-1].push(f)
+
+        self.out = self._sample_next(distrib)
         self.first_run = True
 
         # pokracuj zde: asi by bylo dobre udelat typing u cele Wavenety, hlavne na shapy tensoru!
@@ -262,11 +205,11 @@ class WaveGenerator:
     def __iter__(self):
         return self
 
-    def _sample_next(self, distrib) -> int:
+    def _sample_next(self, distrib: torch.Tensor) -> torch.Tensor:
         """Sample class from distrib
 
-        :param out:
-        :return: sampled class as integer
+        :param distrib: list or 1D tensor of integers
+        :return: A 1D tensor
         """
         return torch.multinomial(distrib, 1)
 
@@ -280,18 +223,19 @@ class WaveGenerator:
         """
 
         if self.first_run:
+            self.first_run = False
             return self.out
 
         out = 0
-        self.out = self.net.one_hot([self.out])
-        # if full, q.push pops necessary items to stay on max cap
-        inputs = torch.cat((self.inputs_queue.push(self.out), self.out))
-        flow = self.input_conv(inputs)  # no dilation on input!, kernel size 2
-        for q, block in zip(self.queues, self.blocks):
-            flow, o = block(torch.cat((q.push(flow), flow)))
+        self.out = self.net.one_hot(self.out).unsqueeze(0).permute(0,2,1)
+        self.inputs_queue.push(self.out)
+        flow = self.net.input_conv(self.inputs_queue.queue)
+        for q, block in zip(self.queues, self.net.blocks):
+            q.push(flow)
+            flow, o = block(q.queue, pad=False)
             out += o # should be output for a single time step
-        out = self.output_layer(out)
-        out = self.softmax(out)
+        out = self.net.output_layer(out)
+        out = self.net.softmax(out)[0, :, 0]  # flatten
         self.out = self._sample_next(out)
         return self.out
 
