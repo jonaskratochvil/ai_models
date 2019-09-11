@@ -25,14 +25,16 @@ class TensorQueue:
         :param x:
         :return:
         """
+        x = torch.as_tensor(x)
 
         if len(x) + len(self) > self.max_size:
             to_pop = self.pop(len(x) + len(self) - self.max_size)
         else:
             to_pop = torch.Tensor([])
 
+        # cat time dimension
         self.queue = torch.cat((self.queue,
-                                x[-self.max_size:]))
+                                x[-self.max_size:]), -1)
         return to_pop
 
     def pop(self, num: int = 1) -> torch.Tensor:
@@ -41,8 +43,9 @@ class TensorQueue:
         :param num: How many items to pop. If `num` >= `self.max_size`, everything is poped
         :return: list
         """
-        to_pop = self.queue[:num]
-        self.queue = self.queue[num:]
+        # pop from time dimension
+        to_pop = self.queue[..., :num]
+        self.queue = self.queue[..., num:]
         return to_pop
 
 
