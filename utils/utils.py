@@ -15,7 +15,7 @@ class TensorQueue:
         self.max_size = max_size
 
     def __len__(self):
-        return len(self.queue)
+        return self.queue.shape[-1]
 
     def push(self,x: torch.Tensor) -> torch.Tensor:
         """Push one or more items
@@ -27,15 +27,15 @@ class TensorQueue:
         """
         x = torch.as_tensor(x)
 
-        if len(x) + len(self) > self.max_size:
-            to_pop = self.pop(len(x) + len(self) - self.max_size)
-        else:
-            to_pop = torch.Tensor([])
-
+        len_before = len(self)
         # cat time dimension
         self.queue = torch.cat((self.queue,
                                 x[-self.max_size:]), -1)
-        return to_pop
+
+        if len(self) > self.max_size:
+            return self.pop(len(self) - self.max_size)
+        else:
+            return torch.Tensor([])
 
     def pop(self, num: int = 1) -> torch.Tensor:
         """Pop `num` items
