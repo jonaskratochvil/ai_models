@@ -11,11 +11,11 @@ class TensorQueue:
 
         :param max_size:
         """
-        self.queue = torch.Tensor([])
+        self.q = torch.Tensor([])
         self.max_size = max_size
 
     def __len__(self):
-        return self.queue.shape[-1]
+        return self.q.shape[-1]
 
     def push(self,x: torch.Tensor) -> torch.Tensor:
         """Push one or more items
@@ -29,7 +29,7 @@ class TensorQueue:
 
         len_before = len(self)
         # cat time dimension
-        self.queue = torch.cat((self.queue,
+        self.q = torch.cat((self.q,
                                 x[-self.max_size:]), -1)
 
         if len(self) > self.max_size:
@@ -44,9 +44,13 @@ class TensorQueue:
         :return: list
         """
         # pop from time dimension
-        to_pop = self.queue[..., :num]
-        self.queue = self.queue[..., num:]
+        to_pop = self.q[..., :num]
+        self.q = self.q[..., num:]
         return to_pop
+
+    @property
+    def queue(self):
+        return self.q
 
 
 def random_chunks(lst: list, min_chunk_size: int, max_chunk_size: int) -> list:
