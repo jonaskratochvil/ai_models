@@ -32,3 +32,12 @@ def test_tensor_queue():
     assert torch.all(torch.eq(x, torch.Tensor([5, 6, 7])))
     queue.pop(2)
     assert torch.all(torch.eq(queue.queue, a))
+
+    # check if the last dim is concateated
+    queue = TensorQueue(5)
+    a = torch.Tensor([[[1,2,3]]]).permute(0,2,1)
+    b = torch.Tensor([[[4, 5, 6]]]).permute(0,2,1)
+    queue.push(a)
+    assert torch.all(torch.eq(queue.queue, a))
+    queue.push(b)
+    assert torch.all(torch.eq(queue.queue, torch.Tensor([[[1,2,3], [4, 5, 6]]]).permute(0,2,1)))
