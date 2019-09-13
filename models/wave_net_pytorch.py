@@ -18,54 +18,60 @@ from utils.utils import TensorQueue
 # L  - length of signal sequence
 
 class WaveBlock(nn.Module):
-    def __init__(self, filters, kernel_size, dilation_rate):
+    def __init__(self, residual_channels, block_channels, skip_channels, kernel_size, dilation_rate):
         super(WaveBlock, self).__init__()
 
-        # padding in time dimension
-        self.pad = nn.ZeroPad2d((dilation_rate * (kernel_size - 1), 0, 0, 0))
-        # how many input features, how many output features
-        self.filter = nn.Conv1d(filters, filters, kernel_size, dilation=dilation_rate)
-        self.gate = nn.Conv1d(filters, filters, kernel_size, dilation=dilation_rate)
-        self.conv1x1 = nn.Conv1d(filters, filters, 1)
+        self.filter = nn.Conv1d(residual_channels, block_channels, kernel_size, dilation=dilation_rate)
+        self.gate = nn.Conv1d(residual_channels, block_channels, kernel_size, dilation=dilation_rate)
+        self.conv1x1_resid = nn.Conv1d(block_channels, residual_channels, 1)
+        self.conv1x1_skip = nn.Conv1d(block_channels, skip_channels, 1)
 
-    def forward(self, flow, pad=True):
+
+    def forward(self, residual, pad=True):
         # x has (batch_size, channels, time)
         # ie one sample is a matrix, where each column is next time step and each row is a feature
         # Convolution runs from left to right
 
-        padded_flow = self.pad(flow) if pad else flow
-        out = self.filter(padded_flow) * self.gate(padded_flow)
-        out = self.conv1x1(out) # should not need padding
-        # return flow output added to flow (residual connection) to form flow to he next block
-        # return also out, which goes directly to output layer
-        if pad:
-            return flow + out, out
-        else:
-            return flow[...,out.shape[-1]:] + out, out
+        out = self.filter(residual) * self.gate(residual)
+        residual = self.conv1x1_resid(out) + residual[..., out.shape[-1]:]
+        skip = self.conv1x1_skip(out)
+        return residual, skip
 
 
 class WaveNet(nn.Module):
-    def __init__(self, filters, kernel_size, dilations, categories, device='cpu'):
+    def __init__(self,
+                 dilations: list,
+                 kernel_size=2,
+                 block_channels=32,
+                 residual_chanels=32,
+                 skip_channels=1024,
+                 end_channels=256,
+                 categories=256,
+                 device='cpu'):
         super(WaveNet, self).__init__()
 
-        self.input_conv = nn.Conv1d(categories, filters, 1, 1)
-        # ModuleList needed - is detected by .cuda() and .to() command
-        self.blocks = nn.ModuleList([WaveBlock(filters, kernel_size,d)
+        self.input_conv = nn.Conv1d(categories, residual_chanels, 1, 1)
+        self.blocks = nn.ModuleList([WaveBlock(residual_chanels, block_channels, skip_channels, kernel_size,d)
                                      for d in dilations])
 
         self.activation = nn.ReLU()
-        self.conv1 = nn.Conv1d(filters, filters, 1)
-        self.conv2 = nn.Conv1d(filters, categories, 1)
-        # softmax over rows - for each timestep a separate softmax
-        # used only optionally in forward
+        self.conv1 = nn.Conv1d(skip_channels, end_channels, 1)
+        self.conv2 = nn.Conv1d(end_channels, categories, 1)
         self.softmax = nn.Softmax(dim=1)
 
+        # params
+        self.kernel_size = kernel_size
+        self.block_channels = block_channels
+        self.residual_chanels = residual_chanels
+        self.skip_channels = skip_channels
+        self.end_channels = end_channels
+        self.categories = categories
         self.dilations = dilations
-        self.filters = filters
         self.kernel_size = kernel_size
         self.categories = categories
-
         self.device = device
+        self.receptive_field = sum(self.dilations) + 1
+
         self.to(device)
         print('Sending network to ', device)
 
@@ -76,34 +82,25 @@ class WaveNet(nn.Module):
         x = self.conv2(x)
         return x
 
-    def forward(self, x: torch.Tensor, probs=False, temperature=1, capture_flows=False):
+    def forward(self, x: torch.Tensor, probs=False, temperature=1, capture_residuals=False):
         """Forward x through the network
 
         :param x:
         :param probs:
         :param temperature:
-        :param capture_flows:
+        :param capture_residuals:
         :return:
         """
 
         x.to(self.device) # send input to device
-        if capture_flows:
-            flows=[]
-
-        x = self.pad(x)
-        flow = self.input_conv(x)
-
-        # append also input_conv output
-        if capture_flows:
-            flows.append(flow)
+        resid = self.input_conv(x)
+        resids = [resid] if capture_residuals else None
 
         out = 0
         for block in self.blocks:
-            flow, block_out = block(flow)
-            out += block_out
-
-            if capture_flows:
-                flows.append(flow)
+            resid, skip = block(resid)
+            out += skip
+            if capture_residuals: resids.append(resid)
 
         out = self.output_layer(out)
 
@@ -113,8 +110,8 @@ class WaveNet(nn.Module):
         if probs:
             out = self.softmax(out)
 
-        if capture_flows:
-            return out, flows
+        if capture_residuals:
+            return out, resids
         else:
             return out
 
@@ -168,10 +165,6 @@ class WaveNet(nn.Module):
         # so far returns one-hot encoded outputs
         return result
 
-    @property
-    def receptive_field(self):
-        return sum(self.dilations)+1
-
 
 class WaveGenerator:
 
@@ -184,7 +177,7 @@ class WaveGenerator:
         self.inputs_queue = TensorQueue(2)
         self.inputs_queue.push(inputs[..., -1:])
 
-        distrib, flows = self.net.forward(inputs, probs=True, capture_flows=True)
+        distrib, flows = self.net.forward(inputs, probs=True, capture_residuals=True)
         distrib = distrib[0, :, -1]  # 1D tensor, for outputs we only need to save the current timestep - 1x1 convolutions
 
         self.queues = []
