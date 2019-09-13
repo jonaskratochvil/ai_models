@@ -6,7 +6,7 @@ import torch.optim as optim               # optimizers e.g. gradient descent, AD
 import torch
 from torch.utils.data.dataloader import DataLoader
 
-from utils.utils import TensorQueue
+from utils.utils import TensorQueue, Progbar
 
 
 # jak jsou organizovane batche v torch?
@@ -92,6 +92,7 @@ class WaveNet(nn.Module):
         :return:
         """
 
+        x = torch.as_tensor(x)
         x.to(self.device) # send input to device
         resid = self.input_conv(x)
         resids = [resid] if capture_residuals else None
@@ -122,7 +123,7 @@ class WaveNet(nn.Module):
         for epoch in range(epochs):
             data_loader = iter(DataLoader(dataset, batch_size=None, num_workers=1))
             running_loss = 0.0
-            #prgbar = Progbar(len(data_loader))
+            prgbar = Progbar(len(data_loader))
             for i, data in enumerate(data_loader):
                 inputs, targets = data[0].to(self.device), data[1].to(self.device)
 
@@ -135,10 +136,7 @@ class WaveNet(nn.Module):
 
                 # print statistics
                 running_loss += loss.item()
-                #prgbar.update(i)
-
-            # FIXME: reportuje porad ten samy loss - co je blbe?
-            print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 330))
+                prgbar.update(i)
 
     def one_hot(self, x: list):
         """One hot encode x, cast to FloatTensor
@@ -243,8 +241,6 @@ if __name__ == '__main__':
                   dilations=dilations,
                   categories=256,
                   device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
-
-    print('Net receptive field: {} s'.format(net.receptive_field/24000))
 
     dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=1, min_audio_length=0.5, max_audio_length=2)
     net.train_net(dataset, 5)
