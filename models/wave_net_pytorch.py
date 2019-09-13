@@ -48,8 +48,7 @@ class WaveNet(nn.Module):
     def __init__(self, filters, kernel_size, dilations, categories, device='cpu'):
         super(WaveNet, self).__init__()
 
-        self.pad = nn.ZeroPad2d((1 * (kernel_size - 1), 0, 0, 0)) # pad before input_conv
-        self.input_conv = nn.Conv1d(categories, filters, kernel_size,1)
+        self.input_conv = nn.Conv1d(categories, filters, 1, 1)
         # ModuleList needed - is detected by .cuda() and .to() command
         self.blocks = nn.ModuleList([WaveBlock(filters, kernel_size,d)
                                      for d in dilations])
