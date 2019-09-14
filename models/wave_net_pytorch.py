@@ -32,7 +32,9 @@ class WaveBlock(nn.Module):
         # ie one sample is a matrix, where each column is next time step and each row is a feature
         # Convolution runs from left to right
 
-        out = self.filter(residual) * self.gate(residual)
+        filter = torch.tanh(self.filter(residual))
+        gate = torch.sigmoid(self.gate(residual))
+        out = filter * gate
         residual = self.conv1x1_resid(out) + residual[..., -out.shape[-1]:]
         skip = self.conv1x1_skip(out)
         return residual, skip
