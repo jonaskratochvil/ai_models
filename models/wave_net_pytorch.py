@@ -33,7 +33,7 @@ class WaveBlock(nn.Module):
         # Convolution runs from left to right
 
         out = self.filter(residual) * self.gate(residual)
-        residual = self.conv1x1_resid(out) + residual[..., out.shape[-1]:]
+        residual = self.conv1x1_resid(out) + residual[..., -out.shape[-1]:]
         skip = self.conv1x1_skip(out)
         return residual, skip
 
