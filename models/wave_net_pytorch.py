@@ -105,8 +105,10 @@ class WaveNet(nn.Module):
         out = 0
         for block in self.blocks:
             resid, skip = block(resid)
-            out = skip + out[:, :, -skip.shape[-1]:] if isinstance(out, torch.Tensor) else skip
-            if capture_residuals: resids.append(resid)
+            out = skip + out[:, :, -skip.shape[-1]:] if \
+                isinstance(out, torch.Tensor) else skip
+            if capture_residuals:
+                resids.append(resid)
 
         out = self.output_layer(out)
 
@@ -143,7 +145,7 @@ class WaveNet(nn.Module):
                 running_loss += loss.item()
                 prgbar.update(i)
 
-    def one_hot(self, x: list):
+    def one_hot(self, x: list or int):
         """One hot encode x, cast to FloatTensor
 
         Each item in x should be a list of integers.
@@ -151,6 +153,10 @@ class WaveNet(nn.Module):
         :param x: 2D tensor or list of lists
         :return: 3D tensor
         """
+
+        if not isinstance(x, list):
+            x = [x]
+
         if not isinstance(x[0], list):
             x = [x]
         elif isinstance(x[0][0], list):
@@ -165,50 +171,51 @@ class WaveNet(nn.Module):
         # x a list of integers
 
         if x is None:
-            x = []
             input = torch.zeros(1, self.categories, self.receptive_field)
         else:
-            x = x[:]
             pad = max(self.receptive_field - len(x), 0)
             if pad > 0:
                 input = nn.ZeroPad2d((pad, 0, 0, 0))(self.one_hot([x]))
+            else:
+                input = self.one_hot([x])
 
         for i in range(timesteps):
             distrib = self.forward(input, probs=True, temperature=temperature)[0, :, -1]
-            x.append(torch.multinomial(distrib, 1)[0])
-            input = torch.cat((input[:,:,1:],
-                               self.one_hot([x[-1:]])))
-            yield x[-1], distrib
-        #return x
+            x = torch.multinomial(distrib, 1)[0]
+            input = self.time_concat(input[:, :, 1:],
+                                     self.one_hot([x]))
+            yield x.item(), distrib
 
 
 class WaveGenerator:
 
-    def __init__(self, wave_net: WaveNet, x: list):
+    def __init__(self, wave_net: WaveNet, x: list = None):
         # TODO: send everything to the correct device
 
         self.net = wave_net
-        inputs = self.net.one_hot(x).unsqueeze(0).permute(0,2,1) # tohle je trochu prasarna - poladit - nechceme davat one-hot uz z venku?
+
+        if x is None:
+            input = torch.zeros(1, self.net.categories, self.net.receptive_field)
+        else:
+            pad = max(self.net.receptive_field - len(x), 0)
+            if pad > 0:
+                input = nn.ZeroPad2d((pad, 0, 0, 0))(self.net.one_hot([x]))
+            else:
+                input = self.net.one_hot([x])
 
         self.inputs_queue = TensorQueue(2)
-        self.inputs_queue.push(inputs[..., -1:])
+        self.inputs_queue.push(input[..., -1:])
 
-        distrib, flows = self.net.forward(inputs, probs=True, capture_residuals=True)
-        distrib = distrib[0, :, -1]  # 1D tensor, for outputs we only need to save the current timestep - 1x1 convolutions
+        dist, residuals = self.net.forward(input, probs=True, capture_residuals=True)
+        self.dist = dist[0, :, -1]
+        self.out = self._sample_next(self.dist)
 
         self.queues = []
-        for f, d in zip(flows, self.net.dilations):
-
-            if d+1 - f.shape[-1] > 0:
-                f = nn.ZeroPad2d((d+1 - f.shape[-1], 0, 0, 0))(f)
+        for r, d in zip(residuals, self.net.dilations):
             self.queues.append(TensorQueue(d+1))
-            self.queues[-1].push(f)
+            self.queues[-1].push(r)
 
-        self.out = self._sample_next(distrib)
         self.first_run = True
-
-        # pokracuj zde: asi by bylo dobre udelat typing u cele Wavenety, hlavne na shapy tensoru!
-        # roztrhat funkce na mensi kusy a napsat testy na shapes, dtype atd.
 
     def __iter__(self):
         return self
@@ -232,20 +239,20 @@ class WaveGenerator:
 
         if self.first_run:
             self.first_run = False
-            return self.out
+            return self.out.item(), self.dist
 
         out = 0
-        self.out = self.net.one_hot(self.out).unsqueeze(0).permute(0,2,1)
+        self.out = self.net.one_hot(self.out)
         self.inputs_queue.push(self.out)
-        flow = self.net.input_conv(self.inputs_queue.queue)
+        residual = self.net.input_conv(self.inputs_queue.queue)
         for q, block in zip(self.queues, self.net.blocks):
-            q.push(flow)
-            flow, o = block(q.queue, pad=False)
-            out += o # should be output for a single time step
+            q.push(residual)
+            residual, skip = block(q.queue, pad=False)
+            out += skip  # should be output for a single time step
         out = self.net.output_layer(out)
-        out = self.net.softmax(out)[0, :, 0]  # flatten
-        self.out = self._sample_next(out)
-        return self.out
+        distrib = self.net.softmax(out)[0, :, 0]  # flatten
+        self.out = self._sample_next(distrib)
+        return self.out.item(), distrib
 
 
 if __name__ == '__main__':

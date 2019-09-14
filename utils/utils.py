@@ -33,7 +33,7 @@ class TensorQueue:
         len_before = len(self)
         # cat time dimension
         self.q = torch.cat((self.q,
-                                x[-self.max_size:]), -1)
+                            x[-self.max_size:]), -1)
 
         if len(self) > self.max_size:
             return self.pop(len(self) - self.max_size)
