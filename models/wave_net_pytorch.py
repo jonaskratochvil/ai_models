@@ -94,6 +94,9 @@ class WaveNet(nn.Module):
         :return:
         """
 
+        if x.shape[-1] < self.receptive_field:
+            raise Exception('Expected x.shape[-1]>={} but got x.shape[-1]={}'.format(self.receptive_field, x.shape[-1]))
+
         x = torch.as_tensor(x)
         x.to(self.device) # send input to device
         resid = self.input_conv(x)
