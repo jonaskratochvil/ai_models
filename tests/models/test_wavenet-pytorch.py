@@ -10,48 +10,39 @@ sys.path.append(root_folder)
 
 from models.wave_net_pytorch import WaveNet, WaveBlock, WaveGenerator
 
+arg = {'dilations': [2 ** i for j in range(5) for i in range(10)],
+       'kernel_size': 2,
+       'block_channels': 4,
+       'residual_chanels': 4,
+       'skip_channels': 4,
+       'end_channels': 4,
+       'categories': 4,
+       'device': 'cpu'}
 
-# TODO: write test class for WaveNet
+net = WaveNet(**arg)
 
-dilations = [2**i for j in range(5) for i in range(5)]
-
-net = WaveNet(filters=3,
-              kernel_size=2,
-              dilations=dilations,
-              categories=3,
-              device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
-
-block = WaveBlock(filters=3, kernel_size=2, dilation_rate=2)
-
-batch = torch.Tensor([[[0, 0, 0, 1],
-                       [1, 0, 1, 0],
-                       [0, 1, 0, 0]],
-                      [[1, 1, 0, 0],
-                       [0, 0, 0, 1],
-                       [0, 0, 1, 0]]]).type(torch.FloatTensor)
-target = torch.Tensor([[1, 2, 1, 0], [0, 0, 2, 1]]).type(torch.LongTensor)
-
-#print(batch.type())
-#print(net.one_hot([1]).unsqueeze(0).shape)
-#print(net(batch[:1], probs=True)[0, :,-1])
-#print(torch.multinomial(net(batch, probs=True)[0, :,-1], 1))
-#gen = WaveGenerator(net, [1, 2, 1, 0])
-
-#net.generate([1,2,1,0], 1000)
-#for i in range(10000):
-#   print('{}: {}'.format(i, next(gen)))
-
-criterion = nn.CrossEntropyLoss()  # only accepts logits!
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+input = [i % 4 for i in range(net.receptive_field)]
+input1 = net.one_hot([input])
+input2 = net.one_hot([input, input])
 
 
-for i in range(1000):
-    inputs, targets = batch[:, :, :-1], target[:, 1:]
+def test_WaveBlock():
+    block = WaveBlock(residual_channels=arg['residual_chanels'],
+                      block_channels=arg['block_channels'],
+                      skip_channels=arg['skip_channels'],
+                      kernel_size=arg['kernel_size'],
+                      dilation_rate=2)
 
-    optimizer.zero_grad()  # zero the parameter gradients
-    outputs = net(inputs, probs=False)  # output logits
-    loss = criterion(outputs, targets)
-    loss.backward()
-    torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
-    optimizer.step()
-    print(loss.item())
+    assert block(input1).shape == (1, arg['categories'], input1.shape[-1] - 2)
+
+
+def test_WaveNet_one_hot():
+    assert input1.shape == (1, arg['categories'], net.receptive_field)
+    assert input2.shape == (2, arg['categories'], net.receptive_field)
+
+
+def test_WaveNet_forward():
+    assert net(input1).shape == (1, arg['categories'], 1)
+    assert net(input2).shape == (2, arg['categories'], 1)
+
+

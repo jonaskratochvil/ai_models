@@ -100,7 +100,7 @@ class WaveNet(nn.Module):
         out = 0
         for block in self.blocks:
             resid, skip = block(resid)
-            out += skip
+            out = skip + out[:, :, -skip.shape[-1]:] if isinstance(out, torch.Tensor) else skip
             if capture_residuals: resids.append(resid)
 
         out = self.output_layer(out)
