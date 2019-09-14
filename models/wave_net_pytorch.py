@@ -158,6 +158,9 @@ class WaveNet(nn.Module):
 
         return F.one_hot(torch.as_tensor(x), self.categories).type(torch.FloatTensor).permute(0,2,1)
 
+    def time_concat(self, x1, x2):
+        return torch.cat((x1, x2), 2)
+
     def generate(self, timesteps, x: list = None, temperature=1):
         # x a list of integers
 
