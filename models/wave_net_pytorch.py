@@ -146,7 +146,12 @@ class WaveNet(nn.Module):
         :param x: 2D tensor or list of lists
         :return: 3D tensor
         """
-        return F.one_hot(torch.as_tensor(x), self.categories).type(torch.FloatTensor)
+        if not isinstance(x[0], list):
+            x = [x]
+        elif isinstance(x[0][0], list):
+            raise ValueError('Exceeded max list nesting. x must be a list or a list of lists.')
+
+        return F.one_hot(torch.as_tensor(x), self.categories).type(torch.FloatTensor).permute(0,2,1)
 
     def generate(self, timesteps, x: list = None, temperature=1):
         # x a list of integers
@@ -165,8 +170,8 @@ class WaveNet(nn.Module):
             x.append(torch.multinomial(distrib, 1)[0])
             input = torch.cat((input[:,:,1:],
                                self.one_hot([x[-1:]])))
-
-        return x
+            yield x[-1], distrib
+        #return x
 
 
 class WaveGenerator:
