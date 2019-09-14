@@ -148,20 +148,25 @@ class WaveNet(nn.Module):
         """
         return F.one_hot(torch.as_tensor(x), self.categories).type(torch.FloatTensor)
 
-    def generate(self, x: list, timesteps, temperature=1):
+    def generate(self, timesteps, x: list = None, temperature=1):
         # x a list of integers
 
-        result = torch.empty(1, self.categories, timesteps + len(x))
-        result[0, :, 0:len(x)] = self.one_hot(x).unsqueeze(0).permute(0,2,1)
-        result = result.float().to(self.device)
+        if x is None:
+            x = []
+            input = torch.zeros(1, self.categories, self.receptive_field)
+        else:
+            x = x[:]
+            pad = max(self.receptive_field - len(x), 0)
+            if pad > 0:
+                input = nn.ZeroPad2d((pad, 0, 0, 0))(self.one_hot([x]))
 
-        for i in range(len(x), len(x) + timesteps):
-            distrib = self.forward(result[:, :, :i], probs=True, temperature=temperature)[0, :, -1]
-            result[:, :, i] = F.one_hot(torch.multinomial(distrib, 1),
-                                        self.categories)
+        for i in range(timesteps):
+            distrib = self.forward(input, probs=True, temperature=temperature)[0, :, -1]
+            x.append(torch.multinomial(distrib, 1)[0])
+            input = torch.cat((input[:,:,1:],
+                               self.one_hot([x[-1:]])))
 
-        # so far returns one-hot encoded outputs
-        return result
+        return x
 
 
 class WaveGenerator:
