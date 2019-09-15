@@ -7,14 +7,14 @@ import numpy as np
 
 class TensorQueue:
 
-    def __init__(self, max_size : int):
+    def __init__(self, max_size : int, device):
         """
 
         If `queue` reaches max size, every push will pop the oldest items
 
         :param max_size:
         """
-        self.q = torch.Tensor([])
+        self.q = torch.Tensor([]).to(device)
         self.max_size = max_size
 
     def __len__(self):
