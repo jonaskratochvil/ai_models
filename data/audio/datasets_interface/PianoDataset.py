@@ -30,41 +30,19 @@ class PianoDataset(data.Dataset):
     def _check_exists(self, root):
         return os.path.exists(os.path.join(root, self.processed_folder, "info.json"))
 
-    def __init__(self, root, batch_size, downsample=False, transform=None, target_transform=None, download=False,
-                 transforms_on_creation=None, min_audio_length=2, max_audio_length=4):
+    def __init__(self, root, batch_size, min_length, num_targets, num_classes):
         """
-
-        :param root:
-        :param downsample:
-        :param transform:
-        :param target_transform:
-        :param download:
-        :param transforms_on_creation:
-        :param min_length: Minimum processed audio length in seconds
-        :param max_length: Maximum processed audio length in seconds
         """
         if not self._check_exists(root):
            raise RuntimeError('Dataset not found.' +
                               ' You can use download=True to download it')
 
         self.root = root
-        self.downsample = downsample
-        self.transform = transform
-        self.target_transform = target_transform
-        self.transforms_on_creation = transforms_on_creation
-        self.chunk_size = 5
-        self.num_samples = 330
-        self.max_len = 0
-        self.min_audio_length = min_audio_length
-        self.max_audio_length = max_audio_length
-        self.cached_pt = 0
         self.batch_size = batch_size
-        self.num_classes = 256
-        self.sample_rate = 16000
-
-        #if download:
-        #    #self.download()
-        #    self.process_audio()
+        self.min_lenght = min_length
+        self.num_targets = num_targets
+        self.num_classes = num_classes
+        self.num_samples = 300 # FIXME
 
     def __getitem__(self, index):
         """ Returns a batch of random length created from a single song!
@@ -77,25 +55,16 @@ class PianoDataset(data.Dataset):
         """
 
         data = torch.load(os.path.join(
-            self.root, self.processed_folder, "piano_music_{:04d}.pt".format(self.cached_pt)))
-        # cut out a random chunk of audio
-        # TODO: check if max_audio_length is no longer than the audio itself
-        segment_length = randint(self.min_audio_length * self.sample_rate, self.max_audio_length*self.sample_rate)
+            self.root, self.processed_folder, "piano_music_{:04d}.pt".format(index)))
+        rand_starts = [randint(0, len(data) - (self.min_lenght + self.num_targets))
+                       for _ in range(self.batch_size)]
+        inputs = torch.stack([data[start : start + self.min_lenght + self.num_targets - 1]
+                              for start in rand_starts])
+        targets = torch.stack([data[start + self.min_lenght : start + self.min_lenght + self.num_targets]
+                               for start in rand_starts])
+        inputs =  F.one_hot(inputs, num_classes=self.num_classes).permute(0,2,1).float()
 
-        rand_starts = (randint(0, len(data) - segment_length) for _ in range(self.batch_size))
-        targets = torch.stack([data[start : start + segment_length] for start in rand_starts])
-        audios = F.one_hot(targets, num_classes=self.num_classes)
-        audios = audios.permute(0,2,1).float()
-
-        #if self.transform is not None:
-        #    audio = self.transform(audio)
-
-        #target = None
-        #if self.target_transform is not None:
-        #    target = self.target_transform(audio)
-
-        # inputs, targets
-        return audios[:, :, :-1], targets[:, 1:]
+        return inputs, targets
 
     def __len__(self):
         return self.num_samples
@@ -104,7 +73,7 @@ class PianoDataset(data.Dataset):
 if __name__ == '__main__':
     from torch.utils.data.dataloader import DataLoader
 
-    dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=1)
+    dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=10, min_length=100, num_targets=10, num_classes=256,)
     loader = iter(DataLoader(dataset, batch_size=None, num_workers=1))
     for i, data in enumerate(loader):
         print(data[0].shape, data[1].shape)
