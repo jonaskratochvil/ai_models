@@ -1,5 +1,3 @@
-import torch.autograd as autograd         # computation graph
-from torch import Tensor                  # tensor node in the computation graph
 import torch.nn as nn                     # neural networks
 import torch.nn.functional as F           # layers, activations and more
 import torch.optim as optim               # optimizers e.g. gradient descent, ADAM, etc.
@@ -77,6 +75,10 @@ class WaveNet(nn.Module):
         self.to(device)
         print('Sending network to ', device)
 
+    def to_device(self, device):
+        self.device = device
+        self.to(device)
+
     def output_layer(self, x):
         x = self.activation(x)
         x = self.conv1(x)
@@ -144,6 +146,7 @@ class WaveNet(nn.Module):
                 # print statistics
                 running_loss += loss.item()
                 prgbar.update(i)
+            print(running_loss / len(data_loader))
 
     def one_hot(self, x: list or int):
         """One hot encode x, cast to FloatTensor
@@ -162,7 +165,7 @@ class WaveNet(nn.Module):
         elif isinstance(x[0][0], list):
             raise ValueError('Exceeded max list nesting. x must be a list or a list of lists.')
 
-        return F.one_hot(torch.as_tensor(x), self.categories).type(torch.FloatTensor).permute(0,2,1)
+        return F.one_hot(torch.as_tensor(x), self.categories).type(torch.FloatTensor).permute(0,2,1).to(self.device)
 
     def time_concat(self, x1, x2):
         return torch.cat((x1, x2), 2)
@@ -189,10 +192,11 @@ class WaveNet(nn.Module):
 
 class WaveGenerator:
 
-    def __init__(self, wave_net: WaveNet, x: list = None):
-        # TODO: send everything to the correct device
+    def __init__(self, wave_net: WaveNet, x: list = None, device = None):
 
         self.net = wave_net
+        if device is None:
+            self.net.to_device(device)
 
         if x is None:
             input = torch.zeros(1, self.net.categories, self.net.receptive_field)
@@ -203,7 +207,8 @@ class WaveGenerator:
             else:
                 input = self.net.one_hot([x])
 
-        self.inputs_queue = TensorQueue(2)
+        input = input.to(self.net.device)
+        self.inputs_queue = TensorQueue(2, device=self.net.device)
         self.inputs_queue.push(input[..., -1:])
 
         dist, residuals = self.net.forward(input, probs=True, capture_residuals=True)
@@ -212,7 +217,7 @@ class WaveGenerator:
 
         self.queues = []
         for r, d in zip(residuals, self.net.dilations):
-            self.queues.append(TensorQueue(d+1))
+            self.queues.append(TensorQueue(d+1, self.net.device))
             self.queues[-1].push(r)
 
         self.first_run = True
@@ -260,30 +265,28 @@ if __name__ == '__main__':
     from torchaudio.transforms import MuLawDecoding
     import torchaudio
 
-    dilations = [2**i for j in range(5) for i in range(10)]
-    net = WaveNet(filters=15,
-                  kernel_size=2,
-                  dilations=dilations,
-                  categories=256,
-                  device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
+    arg = {'dilations': [2 ** i for j in range(5) for i in range(10)],
+           'kernel_size': 2,
+           'block_channels': 32,
+           'residual_chanels': 32,
+           'skip_channels': 32,
+           'end_channels': 32,
+           'categories': 256,
+           'device': 'cuda'}
 
-    dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=1, min_audio_length=0.5, max_audio_length=2)
+    net = WaveNet(**arg)
+
+    dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=1, min_length=net.receptive_field, num_targets=10, num_classes=256)
     net.train_net(dataset, 5)
-    # TODO: save model regularly and use tensorboard for monitoring
-    # print(net.generate(F.one_hot(torch.Tensor([[1,2,3]]).to(torch.int64), num_classes=256).permute(0,2,1), 10))
+    torch.save(net.state_dict(), './wavenet_saved')
+    generator = WaveGenerator(net)
+    sound = []
+    prgbar = Progbar(16000)
+    for i in range(16000):
+        sound.append(next(generator))
+        prgbar.update(i)
 
-    """
-    sampled = Tensor([torch.multinomial(i, 1) for i in out])
-    audio = MuLawDecoding(quantization_channels=256)(sampled)
-    torchaudio.save('foo.wav', audio, 44100)
-    """
-
-    """
-    x = torch.randn(1, 2, 10)
-    dilations = [2**i for i in range(4)]
-    net = WaveNet(2,2,dilations, 2)
-    net.generate(x, 3)
-    """
-
-
-
+    from torchaudio.transforms import MuLawDecoding
+    decode = MuLawDecoding(256)
+    sound = decode(torch.as_tensor(sound))
+    torchaudio.save('amazing_sound.wav', sound, 16000)
