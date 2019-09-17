@@ -277,7 +277,7 @@ if __name__ == '__main__':
            'skip_channels': 256,
            'end_channels': 256,
            'categories': 256,
-           'device': 'cuda'}
+           'device': torch.device("cuda" if torch.cuda.is_available() else "cpu")}
 
     net = WaveNet(**arg)
 
