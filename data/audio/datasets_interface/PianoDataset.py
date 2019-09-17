@@ -42,7 +42,7 @@ class PianoDataset(data.Dataset):
         self.min_lenght = min_length
         self.num_targets = num_targets
         self.num_classes = num_classes
-        self.num_samples = 300 # FIXME
+        self.num_samples = 331 # FIXME
 
     def __getitem__(self, index):
         """ Returns a batch of random length created from a single song!
@@ -56,10 +56,13 @@ class PianoDataset(data.Dataset):
 
         data = torch.load(os.path.join(
             self.root, self.processed_folder, "piano_music_{:04d}.pt".format(index)))
-        rand_start = randint(0, len(data) - (self.min_lenght + self.num_targets))
-        inputs = torch.as_tensor(data[rand_start : rand_start + self.min_lenght + self.num_targets - 1])
-        targets = torch.as_tensor(data[rand_start + self.min_lenght : rand_start + self.min_lenght + self.num_targets])
-        inputs =  F.one_hot(inputs, num_classes=self.num_classes).permute(1, 0).float()
+        rand_starts = [randint(0, len(data) - (self.min_lenght + self.num_targets))
+                       for _ in range(self.batch_size)]
+        inputs = torch.stack([data[start: start + self.min_lenght + self.num_targets - 1]
+                              for start in rand_starts])
+        targets = torch.stack([data[start + self.min_lenght: start + self.min_lenght + self.num_targets]
+                               for start in rand_starts])
+        inputs = F.one_hot(inputs, num_classes=self.num_classes).permute(0, 2, 1).float()
 
         return inputs, targets
 
@@ -70,8 +73,8 @@ class PianoDataset(data.Dataset):
 if __name__ == '__main__':
     from torch.utils.data.dataloader import DataLoader
 
-    dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=10, min_length=100, num_targets=10, num_classes=256,)
-    loader = iter(DataLoader(dataset, batch_size=10, num_workers=0))
+    dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=32, min_length=100, num_targets=8000, num_classes=256,)
+    loader = iter(DataLoader(dataset, batch_size=None, num_workers=0))
     for i, data in enumerate(loader):
         print(data[0].shape, data[1].shape)
 
