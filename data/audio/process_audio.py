@@ -200,8 +200,3 @@ def process_audio(root, chunk_size=None, min_audio_length=None, max_audio_length
     info['num_samples'] = (n * chunk_size) + i + 1
     info['max_seconds'] = info['max_len'] // info['sample_rate'] + 1
     """
-
-from torchaudio.transforms import MuLawEncoding
-
-process_audio('/media/jan//Data/datasets/PianoDataset',
-              transforms=[MuLawEncoding(quantization_channels=256)])
