@@ -56,13 +56,10 @@ class PianoDataset(data.Dataset):
 
         data = torch.load(os.path.join(
             self.root, self.processed_folder, "piano_music_{:04d}.pt".format(index)))
-        rand_starts = [randint(0, len(data) - (self.min_lenght + self.num_targets))
-                       for _ in range(self.batch_size)]
-        inputs = torch.stack([data[start : start + self.min_lenght + self.num_targets - 1]
-                              for start in rand_starts])
-        targets = torch.stack([data[start + self.min_lenght : start + self.min_lenght + self.num_targets]
-                               for start in rand_starts])
-        inputs =  F.one_hot(inputs, num_classes=self.num_classes).permute(0,2,1).float()
+        rand_start = randint(0, len(data) - (self.min_lenght + self.num_targets))
+        inputs = torch.as_tensor(data[rand_start : rand_start + self.min_lenght + self.num_targets - 1])
+        targets = torch.as_tensor(data[rand_start + self.min_lenght : rand_start + self.min_lenght + self.num_targets])
+        inputs =  F.one_hot(inputs, num_classes=self.num_classes).permute(1, 0).float()
 
         return inputs, targets
 
@@ -74,10 +71,9 @@ if __name__ == '__main__':
     from torch.utils.data.dataloader import DataLoader
 
     dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=10, min_length=100, num_targets=10, num_classes=256,)
-    loader = iter(DataLoader(dataset, batch_size=None, num_workers=1))
+    loader = iter(DataLoader(dataset, batch_size=10, num_workers=0))
     for i, data in enumerate(loader):
         print(data[0].shape, data[1].shape)
-        print(i)
 
     exit()
 

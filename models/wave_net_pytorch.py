@@ -72,6 +72,8 @@ class WaveNet(nn.Module):
         self.device = device
         self.receptive_field = sum(self.dilations) + 1
 
+        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
+
         self.to(device)
         print('Sending network to ', device)
 
@@ -127,21 +129,20 @@ class WaveNet(nn.Module):
 
     def train_net(self, dataset, epochs):
         criterion = nn.CrossEntropyLoss()  # only accepts logits!
-        optimizer = optim.SGD(self.parameters(), lr=0.001, momentum=0.9)
 
         for epoch in range(epochs):
-            data_loader = iter(DataLoader(dataset, batch_size=None, num_workers=1))
+            data_loader = iter(DataLoader(dataset, batch_size=8, num_workers=0))
             running_loss = 0.0
             prgbar = Progbar(len(data_loader))
             for i, data in enumerate(data_loader):
                 inputs, targets = data[0].to(self.device), data[1].to(self.device)
 
-                optimizer.zero_grad()  # zero the parameter gradients
+                self.optimizer.zero_grad()  # zero the parameter gradients
                 outputs = net(inputs, probs=False)  # output logits
                 loss = criterion(outputs, targets)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.parameters(), 1)
-                optimizer.step()
+                self.optimizer.step()
 
                 # print statistics
                 running_loss += loss.item()
@@ -195,7 +196,7 @@ class WaveGenerator:
     def __init__(self, wave_net: WaveNet, x: list = None, device = None):
 
         self.net = wave_net
-        if device is None:
+        if device is not None:
             self.net.to_device(device)
 
         if x is None:
@@ -211,7 +212,8 @@ class WaveGenerator:
         self.inputs_queue = TensorQueue(2, device=self.net.device)
         self.inputs_queue.push(input[..., -1:])
 
-        dist, residuals = self.net.forward(input, probs=True, capture_residuals=True)
+        with torch.set_grad_enabled(False):
+            dist, residuals = self.net.forward(input, probs=True, capture_residuals=True)
         self.dist = dist[0, :, -1]
         self.out = self._sample_next(self.dist)
 
@@ -249,13 +251,16 @@ class WaveGenerator:
         out = 0
         self.out = self.net.one_hot(self.out)
         self.inputs_queue.push(self.out)
-        residual = self.net.input_conv(self.inputs_queue.queue)
-        for q, block in zip(self.queues, self.net.blocks):
-            q.push(residual)
-            residual, skip = block(q.queue, pad=False)
-            out += skip  # should be output for a single time step
-        out = self.net.output_layer(out)
-        distrib = self.net.softmax(out)[0, :, 0]  # flatten
+
+        with torch.set_grad_enabled(False):
+            residual = self.net.input_conv(self.inputs_queue.queue)
+            for q, block in zip(self.queues, self.net.blocks):
+                q.push(residual)
+                residual, skip = block(q.queue, pad=False)
+                out += skip  # should be output for a single time step
+            out = self.net.output_layer(out)
+            distrib = self.net.softmax(out)[0, :, 0]  # flatten
+
         self.out = self._sample_next(distrib)
         return self.out.item(), distrib
 
@@ -265,28 +270,31 @@ if __name__ == '__main__':
     from torchaudio.transforms import MuLawDecoding
     import torchaudio
 
-    arg = {'dilations': [2 ** i for j in range(5) for i in range(10)],
+    arg = {'dilations': [2 ** i for j in range(3) for i in range(10)],
            'kernel_size': 2,
-           'block_channels': 32,
-           'residual_chanels': 32,
-           'skip_channels': 32,
-           'end_channels': 32,
+           'block_channels': 256,
+           'residual_chanels': 256,
+           'skip_channels': 256,
+           'end_channels': 256,
            'categories': 256,
            'device': 'cuda'}
 
     net = WaveNet(**arg)
 
-    dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=1, min_length=net.receptive_field, num_targets=10, num_classes=256)
-    net.train_net(dataset, 5)
-    torch.save(net.state_dict(), './wavenet_saved')
+    dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=10, min_length=net.receptive_field, num_targets=32, num_classes=256)
+    net.load_state_dict(torch.load('wavenet_saved'))
+    for round in range(5):
+        net.train_net(dataset, 10)
+        torch.save(net.state_dict(), './wavenet_round_{}'.format(round))
+
     generator = WaveGenerator(net)
     sound = []
     prgbar = Progbar(16000)
     for i in range(16000):
-        sound.append(next(generator))
+        sound.append(next(generator)[0])
         prgbar.update(i)
 
     from torchaudio.transforms import MuLawDecoding
     decode = MuLawDecoding(256)
     sound = decode(torch.as_tensor(sound))
-    torchaudio.save('amazing_sound.wav', sound, 16000)
+    torchaudio.save('amazing_sound.wav', sound, 8000)
