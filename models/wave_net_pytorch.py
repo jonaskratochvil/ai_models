@@ -16,18 +16,18 @@ from utils.utils import TensorQueue, Progbar
 # L  - length of signal sequence
 
 class WaveBlock(nn.Module):
-    """One WaveNet stack
+    """One WaveNet block (sometimes called stack in papers)
 
-    #            |----------------------------------------|     *residual*
-    #            |                                        |
-    #            |    |-- conv -- tanh --|                |
-    # -> dilate -|----|                  * ----|-- 1x1 -- + -->	*input*
-    #                 |-- conv -- sigm --|     |
-    #                                         1x1
-    #                                          |
-    # ---------------------------------------> + ------------->	*skip*
+    #                     |----------------------------------------|
+    #                     |                                        |
+    #                     |    |-- conv -- tanh --|                |
+    # residual -> dilate -|----|                  * ----|-- 1x1 -- + --> residual
+    #                          |-- conv -- sigm --|     |
+    #                                                  1x1
+    #                                                   |
+    # ------------------------------------------------> + -------------> skip
 
-    ASCII art taken from https://github.com/vincentherrmann/pytorch-wavenet/blob/master/wavenet_model.py
+    ASCII art adapted from https://github.com/vincentherrmann/pytorch-wavenet/blob/master/wavenet_model.py
     """
     def __init__(self, residual_channels, block_channels, skip_channels, kernel_size, dilation_rate):
         """
@@ -50,7 +50,6 @@ class WaveBlock(nn.Module):
         Convolution runs from left to right.
         Computed residual will be shorter than input residual due to dilation.
         We add only the overlapping part of input and output residuals.
-
         :param residual: Residual from previous block or from input_conv, (batch_size, channels, time_dim)
         :return: residual, skip
         """
@@ -66,6 +65,26 @@ class WaveBlock(nn.Module):
 class WaveNet(nn.Module):
     """
 
+    The two views of WaveNet:
+
+        Dilated convolutions view
+        -------------------------
+
+                 o ...       o
+               / | ...     / |
+             /   | ...   /   |  WaveBlock
+           o  o  o  o  o  o  o
+          /| /| /| /| /| /| /|  WaveBlock
+        o  o  o  o  o  o  o  o
+        |  |  |  |  |  |  |  |  1x1conv
+        o  o  o  o  o  o  o  o  inputs
+
+        Residual view
+        -------------
+
+        input_conv -> WaveBlock -> .. -> WaveBlock
+                          |      |    |       |
+        skip = 0 -------- + ---- + ...+ ----- + -------> ReLu, Conv1x1, ReLu, Conv1x1, Softmax
 
     """
 
