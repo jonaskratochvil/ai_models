@@ -194,7 +194,7 @@ class WaveNet(nn.Module):
         criterion = nn.CrossEntropyLoss()  # only accepts logits!
 
         for epoch in range(epochs):
-            data_loader = iter(DataLoader(dataset, batch_size=8, num_workers=0))
+            data_loader = iter(DataLoader(dataset, batch_size=None, num_workers=0))
             running_loss = 0.0
             prgbar = Progbar(len(data_loader))
             for i, data in enumerate(data_loader):
@@ -344,13 +344,16 @@ class WaveGenerator:
 
 if __name__ == '__main__':
     from data.audio.datasets_interface.PianoDataset import PianoDataset
+    from data.audio.datasets_interface.SineWave import SineWave
+
     from torchaudio.transforms import MuLawDecoding
     import torchaudio
+    import numpy as np
 
     arg = {'dilations': [2 ** i for j in range(3) for i in range(10)],
            'kernel_size': 2,
-           'block_channels': 256,
-           'residual_chanels': 256,
+           'block_channels': 32,
+           'residual_chanels': 32,
            'skip_channels': 256,
            'end_channels': 256,
            'categories': 256,
@@ -358,20 +361,24 @@ if __name__ == '__main__':
 
     net = WaveNet(**arg)
 
-    dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=10, min_length=net.receptive_field, num_targets=32, num_classes=256)
-    net.load_state_dict(torch.load('wavenet_saved'))
+    torch.cuda.empty_cache()
+
+    dataset = PianoDataset('/media/jan//Data/datasets/PianoDataset', batch_size=8, min_length=net.receptive_field, num_targets=8000, num_classes=256)
+    #net.load_state_dict(torch.load('wavenet_saved'))
+
+    # dataset = SineWave(net.receptive_field)
     for round in range(5):
-        net.train_net(dataset, 10)
-        torch.save(net.state_dict(), './wavenet_round_{}'.format(round))
+        net.train_net(dataset, 5)
+        torch.save(net.state_dict(), './model_round_{}'.format(round))
 
     generator = WaveGenerator(net)
     sound = []
-    prgbar = Progbar(16000)
-    for i in range(16000):
+    prgbar = Progbar(8000*3)
+    for i in range(8000*3):
         sound.append(next(generator)[0])
         prgbar.update(i)
 
     from torchaudio.transforms import MuLawDecoding
     decode = MuLawDecoding(256)
     sound = decode(torch.as_tensor(sound))
-    torchaudio.save('amazing_sound.wav', sound, 8000)
+    torchaudio.save('sine_wave.wav', sound, 8000)
