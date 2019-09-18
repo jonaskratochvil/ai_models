@@ -16,7 +16,27 @@ from utils.utils import TensorQueue, Progbar
 # L  - length of signal sequence
 
 class WaveBlock(nn.Module):
+    """One WaveNet stack
+
+    #            |----------------------------------------|     *residual*
+    #            |                                        |
+    #            |    |-- conv -- tanh --|                |
+    # -> dilate -|----|                  * ----|-- 1x1 -- + -->	*input*
+    #                 |-- conv -- sigm --|     |
+    #                                         1x1
+    #                                          |
+    # ---------------------------------------> + ------------->	*skip*
+
+    ASCII art taken from https://github.com/vincentherrmann/pytorch-wavenet/blob/master/wavenet_model.py
+    """
     def __init__(self, residual_channels, block_channels, skip_channels, kernel_size, dilation_rate):
+        """
+        :param residual_channels: Num. of channels for resid. connections between wave blocks
+        :param block_channels: Num. of channels used inside wave blocks
+        :param skip_channels: Num. of channels for skip connections directed to output
+        :param kernel_size: Num. of branches for each convolution kernel
+        :param dilation_rate: Hom much to dilate inputs before applying gate and filter
+        """
         super(WaveBlock, self).__init__()
 
         self.filter = nn.Conv1d(residual_channels, block_channels, kernel_size, dilation=dilation_rate)
@@ -24,11 +44,16 @@ class WaveBlock(nn.Module):
         self.conv1x1_resid = nn.Conv1d(block_channels, residual_channels, 1)
         self.conv1x1_skip = nn.Conv1d(block_channels, skip_channels, 1)
 
+    def forward(self, residual):
+        """Forward residual
 
-    def forward(self, residual, pad=True):
-        # x has (batch_size, channels, time)
-        # ie one sample is a matrix, where each column is next time step and each row is a feature
-        # Convolution runs from left to right
+        Convolution runs from left to right.
+        Computed residual will be shorter than input residual due to dilation.
+        We add only the overlapping part of input and output residuals.
+
+        :param residual: Residual from previous block or from input_conv, (batch_size, channels, time_dim)
+        :return: residual, skip
+        """
 
         filter = torch.tanh(self.filter(residual))
         gate = torch.sigmoid(self.gate(residual))
@@ -39,15 +64,30 @@ class WaveBlock(nn.Module):
 
 
 class WaveNet(nn.Module):
+    """
+
+
+    """
+
     def __init__(self,
                  dilations: list,
                  kernel_size=2,
                  block_channels=32,
                  residual_chanels=32,
-                 skip_channels=1024,
+                 skip_channels=256,
                  end_channels=256,
                  categories=256,
                  device='cpu'):
+        """
+        :param dilations: list of dilations from first WaveBlock to last
+        :param kernel_size: Num. of branches for each convolution kernel
+        :param block_channels: Num. of channels used inside wave blocks
+        :param residual_channels: Num. of channels for resid. connections between wave blocks
+        :param skip_channels: Num. of channels for skip connections directed to output
+        :param end_channels: Num. of channels for final 1x1 convolutions
+        :param categories: Num. of predicted categories (ie sound bins)
+        :param device: cpu or cuda
+        """
         super(WaveNet, self).__init__()
 
         self.input_conv = nn.Conv1d(categories, residual_chanels, 1, 1)
@@ -72,6 +112,7 @@ class WaveNet(nn.Module):
         self.device = device
         self.receptive_field = sum(self.dilations) + 1
 
+        # TODO: parametrize by user
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
 
         self.to(device)
@@ -81,21 +122,28 @@ class WaveNet(nn.Module):
         self.device = device
         self.to(device)
 
-    def output_layer(self, x):
-        x = self.activation(x)
-        x = self.conv1(x)
-        x = self.activation(x)
-        x = self.conv2(x)
-        return x
+    def logits_from_skip(self, skip):
+        """Final layer
+
+        Accept sum of all skip connections and run final 1x1 convs
+
+        :param skip: sum of skip connections from WaveBlocks
+        :return: model logits
+        """
+        skip = self.activation(skip)
+        skip = self.conv1(skip)
+        skip = self.activation(skip)
+        skip = self.conv2(skip)
+        return skip
 
     def forward(self, x: torch.Tensor, probs=False, temperature=1, capture_residuals=False):
-        """Forward x through the network
+        """Forward batch `x` through the network
 
-        :param x:
-        :param probs:
-        :param temperature:
-        :param capture_residuals:
-        :return:
+        :param x: (batch_size, classes, time_dim)
+        :param probs: If True, output softmax of logits
+        :param temperature: Scale logits before softmax
+        :param capture_residuals: If True, return list of residuals from all WaveBlocks too
+        :return: output or (output, list_of_residuals)
         """
 
         if x.shape[-1] < self.receptive_field:
@@ -106,28 +154,43 @@ class WaveNet(nn.Module):
         resid = self.input_conv(x)
         resids = [resid] if capture_residuals else None
 
-        out = 0
+        skips = 0
         for block in self.blocks:
             resid, skip = block(resid)
-            out = skip + out[:, :, -skip.shape[-1]:] if \
-                isinstance(out, torch.Tensor) else skip
+            skips = skip + skips[:, :, -skip.shape[-1]:] if \
+                isinstance(skips, torch.Tensor) else skip
             if capture_residuals:
                 resids.append(resid)
 
-        out = self.output_layer(out)
+        logits = self.logits_from_skip(skips)
 
         if not self.training and temperature != 1:
-            out = out / temperature
+            logits = logits / temperature
 
         if probs:
-            out = self.softmax(out)
+            out = self.softmax(logits)
 
         if capture_residuals:
             return out, resids
         else:
             return out
 
-    def train_net(self, dataset, epochs):
+    def train_net(self, dataset: torch.utils.data.Dataset, epochs: int):
+        """Backpropagation for given set of epochs
+
+        TODO:
+        1. figure out how to make batching more elegant
+        2. Parametrize num_workers
+        3. Integrate tensorboard logging
+
+        There is some mess regarding batches:
+        1. batch_size in dataset refers to how many segments to export from one audio.
+        2. batch_size in DataLoader is set to None - leave the batching up to the dataset.
+
+        :param dataset: A dataset object
+        :param epochs: int
+        :return:
+        """
         criterion = nn.CrossEntropyLoss()  # only accepts logits!
 
         for epoch in range(epochs):
@@ -152,10 +215,8 @@ class WaveNet(nn.Module):
     def one_hot(self, x: list or int):
         """One hot encode x, cast to FloatTensor
 
-        Each item in x should be a list of integers.
-        All lists should have the same length.
-        :param x: 2D tensor or list of lists
-        :return: 3D tensor
+        :param x: integer, list, or list of lists
+        :return: 3D tensor of shape (batch_size, channels, time)
         """
 
         if not isinstance(x, list):
@@ -169,11 +230,23 @@ class WaveNet(nn.Module):
         return F.one_hot(torch.as_tensor(x), self.categories).type(torch.FloatTensor).permute(0,2,1).to(self.device)
 
     def time_concat(self, x1, x2):
+        """Concatenate `x1` and `x2` in time dimension"""
         return torch.cat((x1, x2), 2)
 
     def generate(self, timesteps, x: list = None, temperature=1):
-        # x a list of integers
+        """Slowly generate new samples
 
+        Returns a generator object.
+        If x is None, start is initialised with zeroes
+        If x is shorter than receptive field, it is zero-padded
+
+        TODO: DO not limit generation by timesteps
+
+        :param timesteps: how many steps will be generated
+        :param x: None or list of initial steps (eg a start of some music piece)
+        :param temperature: Logit temperature for softmax
+        :return: next_item, distrib
+        """
         if x is None:
             input = torch.zeros(1, self.categories, self.receptive_field)
         else:
@@ -188,10 +261,14 @@ class WaveNet(nn.Module):
             x = torch.multinomial(distrib, 1)[0]
             input = self.time_concat(input[:, :, 1:],
                                      self.one_hot([x]))
+            # yield also distribution for comparison with other generation methods
             yield x.item(), distrib
 
 
 class WaveGenerator:
+    """Generator based on dynamic caching of previously calculated residuals.
+    For more info see: https://github.com/tomlepaine/fast-wavenet
+    """
 
     def __init__(self, wave_net: WaveNet, x: list = None, device = None):
 
@@ -258,7 +335,7 @@ class WaveGenerator:
                 q.push(residual)
                 residual, skip = block(q.queue, pad=False)
                 out += skip  # should be output for a single time step
-            out = self.net.output_layer(out)
+            out = self.net.logits_from_skip(out)
             distrib = self.net.softmax(out)[0, :, 0]  # flatten
 
         self.out = self._sample_next(distrib)
