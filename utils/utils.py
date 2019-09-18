@@ -2,7 +2,28 @@ import sys, time
 from random import randint
 
 import torch
+import torch.nn.functional as F
 import numpy as np
+
+
+def logistic_mixture(x: torch.Tensor,
+                     a: torch.Tensor,
+                     m: torch.Tensor,
+                     s: torch.Tensor,
+                     dim=0):
+    """Log probabilities of mixture of logistic distributions
+
+    P(x|a, m, s) = sum(a * [sigmoid((x + 0.5 + m) / s) - sigmoid((x - 0.5 + m) / s)] )
+
+    :param x: Integer values of x for which the probabilities are computed
+    :param a: A list of distribution weights
+    :param m: A mean for each distribution
+    :param s: Log scale for each distribution
+    :param dim: Over which dimension to normalize
+    :return: P(x|a, m, s)
+    """
+    return torch.sum(a * (F.sigmoid((x + 0.5 + m) / s) -
+                          F.sigmoid((x - 0.5 + m)/s)))
 
 
 class TensorQueue:
