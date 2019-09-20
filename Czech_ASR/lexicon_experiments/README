@@ -1,0 +1,7 @@
+Here we do lexicon extension submit via a script extnd.sh where we specify we path to corpus by which we are extending.
+
+Make sure that the newest lexicon is named lexicon_original.txt
+
+After this step copy merged_lexicon.txt to new/local/dict/
+
+You can clean all created files by ./cleanafter

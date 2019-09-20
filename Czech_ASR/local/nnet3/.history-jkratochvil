@@ -1,0 +1,8 @@
+_T=20190619_11:18:22_20288	 ls
+_T=20190619_11:20:47_20288	 vim run_ivector_common.sh
+_T=20190619_11:20:50_20288	 qstat
+_T=20190619_11:21:54_20288	 vim run_ivector_common.sh
+_T=20190806_09:57:13_29401	 ls
+_T=20190806_09:57:25_29401	 rm run_ivector_common.sh
+_T=20190806_09:57:38_29401	 cp ../../../augmentation_experiments/local/nnet3/run_ivector_common.sh .
+_T=20190806_09:57:40_29401	 ls
