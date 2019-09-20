@@ -1,0 +1,1389 @@
+Cluster
+ssh jkratochvil@geri.ms.mff.cuni.cz   (take freki, tap)
+
+-> ssh sol1 (2,...) a heslo znovu
+
+qsub - submitts a job to queue
+
+-submitne jednoduchy job vypsat datum a abecedu s jiz predem specifikovanymi parametry 
+ssh sol1 -> ~bojar/tools/shell/qsubmit "date | tr a-z A-Z" 
+
+
+konec u dvacet_11_28
+
+check Makefile: cat -e -t -v Makefile
+
+KIT ASR
+cd Translate_vypisky/cruise-control/multi-channel-setup
+./single-track-input.sh | ./client-asr-nosegm.sh en
+
+quota: /opt/mfutils/mgmt quota
+
+logout
+
+jonas.kratochvil (bereng)
+/lnet/spec/work/people/oplatek/kaldi/egs/vystadial_cz/s5b/exp/tri3b
+
+--utt2spk
+
+qstat -F | grep '@' - seznam pocitacu
+rsync -avz source dest (archive -věrná kopie, piš soubory a komprimuj za letu )
+
+to copy from cluster (pis v terminalu notebooku)
+rsync -avz jkratochvil@geri.ms.mff.cuni.cz:/lnet/ms/data/cesky-rozhlas-prepisy/2018-prepisy-od-Monitory-audio/downloaded/db0cad928131c55d186a7fb34f298c55.mp3 ~/Jonas-zaloha/Translate_vypisky/Ceskyrozhlas/Dvacetminut
+/lnet/spec/work/people	
+
+-misto "date | tr a-z A-Z" napis jenom run.sh
+- popsat path na misto kde uz lezi data Vystadial
+
+Executing: qsub -j y -cwd -S /bin/bash -p -100 -N qsubmit -hard -l mf=6g -hard -l h_data=6g
+
+- napsat qstat - to mi ukaze i job-id (napr 5244540) -> qsubmit.o5244540
+
+.history-jkratochvil
+
+- kde lezi data ceskeho rozhlasu: /lnet/ms/data/cesky-rozhlas-prepisy/
+
+- to co je pouzitene je cca 200 hodin!
+
+- get some metadata info about a file ffmpeg -i file.mp3
+
+- v URL-soubory to bude vzdy chtit najit nazev nahravky a sparovat to dohromady 
+
+- vytvorit nove slozky a do nich roztridit soubory. 
+
+- to copy from my computer to cluster: rsync -avz ~/Jonas-zaloha/Python/hello.py jkratochvil@geri.ms.mff.cuni.cz:~/personal_work_ms
+
+
+Segment text and MP3
+
+text
+awk -v RS= '{print > ("whatever-" NR ".txt")}' file.txt
+
+MP3
+mp3splt -f -t 1.0 -a -d . 12e9149595426eb68404fe5b7729b013.mp3
+
+multirename
+n=1; for f in *.txt; do mv "$f" "CO_$((n++))_$f"; done
+
+
+Rename all .txt to .wav.trn
+for f in *.txt; do 
+    mv -- "$f" "${f%.txt}.wav.trn"
+done
+
+downsample all wav files in folder
+
+for f in ./*.wav; do sox "$f" -r 16000 "${f%%%.wav}.wav"; done
+
+to create a good file structure - vytvori po 20 files directories 00 01 02 ....
+
+i=0; for f in *; do d=$(printf %02d $((i/20))); mkdir -p $d; mv "$f" $d; let i++; done
+
+
+- v env u vysadial se koukni co ma byt vytvoreno
+
+
+
+
+audioknížky zdarma
+https://librivox.org/search?primary_key=16&search_category=language&search_page=1&search_form=get_results
+
+příprava dat
+https://medium.com/@klintcho/creating-an-open-speech-recognition-dataset-for-almost-any-language-c532fb2bc0cf
+
+Python packages
+
+- dobre instalovat pres: pip3 install --user <package>
+
+
+
+Unix
+
+To list the top 10 largest files from the current directory: du . | sort -nr | head -n10
+
+
+CELKOVA PRIPRAVA DAT FINALNI POSTUP
+
+./cleanme "file" "slozka" "odstranit1" "odstranit2" 
+
+-nutno dale ocistit
+
+MP3 musi byt prevedena na wav - nejlepe na 1 channel a 16000
+
+ve slozce first_alignment.py segment_data.py
+
+kopiruj na USB a pak posilej na cluster
+
+
+Good links
+https://www.linkedin.com/pulse/speech-natural-language-processing-swayam-mittal - odkazy na ruzne zdroje
+https://www.eleanorchodroff.com/tutorial/kaldi/training-overview.html - Kaldi tutorial
+https://towardsdatascience.com/how-to-start-with-kaldi-and-speech-recognition-a9b7670ffff6 - start with Kaldi
+https://github.com/srvk/eesen - eesen toolkit
+https://cmusphinx.github.io/wiki/tutorialconcepts/ - CMUSphix tutorials
+https://chrisearch.wordpress.com/2017/03/11/speech-recognition-using-kaldi-extending-and-using-the-aspire-model/ - extending your language model and corpus
+https://senarvi.github.io/kaldi-lattices/ - Kaldi latices
+
+use !! to paste previous command after new on
+
+use cd - to go to previously visited directory
+
+use ctrl+A and ctrl+E to go to beginning and end of commanline 
+
+use tail -f path_to_log_file to see logs in real time
+
+use take to mkdir and cd at the same time
+
+use touch to create file (even multiple files) - if exists it updates the time of access 
+
+use which to search where programm is in computer 
+
+to shut-down a computer in 20 minutes use: sudo shutdown -h 20 (sudo shutdown -c to cancel it)
+
+use ctrl+K to cut from prompt to end of line ctrl+U cats from prompt to beginning of a line 
+
+free space: df -ah
+			du -sh <dir>
+
+compute total lenght of al audiofiles in directory: soxi -D *wav | awk '{SUM += $1} END { printf "%d:%d:%d\n",SUM/3600,SUM%3600/60,SUM%60}'
+
+alt+B - go right one word, alt+F go left one word
+
+
+flake8: usage: flake8 path/to/your_code/main.py #check particular file
+
+
+
+
+
+
+
+zip loop bash
+
+im1_files=(*.txt)
+im2_files=(*.nwer)
+for ((i=0;i<=${#im1_files[@]};i++)); do
+   python3 ./edit_distance.py "${im1_files[i]}" "${im2_files[i]}" >> scores.txt
+done
+
+RecursiveLikeThis
+
+use __init__.py  in directory so that python will look for submodules in that directory
+
+####################################### ASR stuff ##################################################################
+
+Force alignment of audio in kaldi
+steps/cleanup/segment_long_utterances.sh  
+
+Finální postup
+1) zbav se moderátorů
+sed -i '/pattern to match/d' ./file.txt
+
+2) zbav se prvních 6 řádků
+remove first 9 lines: 
+tail -n +7 file.txt > removedlines.txt
+
+3) pretty the text and make all one line
+cat removedlines.txt | tr -d '\n' | python3 makepretty.py  > oneline.txt
+
+pozn: 24.9.-29.9. předvolební debaty a nebyl pořad
+10.3.,10.4. - nějaké multi-people debaty bude chtít čeknout s nahrávkami
+
+wav.scp: 86_rannihost_rannihost1 /home/jonas/kaldi/egs/digits/digits_audio/alignme/86_rannihost/rannihost1.wav
+segments: 86_rannihost_rannihost1 rannihost1 0.0 20.36.34
+
+segment_long_uttlong_utterances.sh
+
+ <model-dir> <lang> <data-in> [<text-in> <utt2text>] <segmented-data-out> <work-dir>
+
+exp/wsj_tri2b data/lang_nosp data/train_long data/train_long/text       data/train_reseg exp/segment_wsj_long_utts_train
+
+pracuj s MP3 a pak v Kaldi prevedes
+
+
+Co udelat: otrhat vždy transcript a pak zkusit rozchodit ten postup tady na alignment: https://www.eleanorchodroff.com/tutorial/kaldi/forced-alignment.html
+
+- vždy převeď audio na 1 channel, udělej sehments file a tam piš vše ve vteřinách!
+
+	
+train ivectors
+steps/online/nnet2/train_ivector_extractor.sh ...
+
+utils/data/modify_speaker_info.sh --utts-per-spk-max 2  ...   #for more diversity
+
+steps/online/nnet2/extract_ivectors_online.sh ... splitted_speakers...
+
+
+doing alignments
+steps/cleanup/segment_long_utterances.sh. 
+That will take your long reference transcript and find the spoken 
+segments, aligning it will the text.  Look in 
+egs/wsj/s5/local/run_segmentation_long_utts.sh for an example of its 
+usage.  You can follow it by steps/cleanup/clean_and_segment_data.sh 
+
+
+nový řádek na specifickém symbolu
+cat removedlines.txt | sed 's/[.!?:] */&\n/g' > newfile.txt
+
+
+
+Nezarazerno
+
+L.fst is compiled lexicon in fst format
+The .scp format is a text-only format has lines with a key, and then an "extended filename" that tells Kaldi where to find the data.
+The archive format may be text or binary (you can write in text mode with the ",t" modifier; binary is default). The format is: the key (e.g. utterance id), then a space, then the object data.
+A string that specifies how to read a Table (archive or script) is called an rspecifier; for example "ark:gunzip -c my/dir/foo.ark.gz|".
+A string that specifies how to write a Table (archive or script) is called a wspecifier; for example "ark,t:foo.ark".
+-Both words.txt and phones.txt are OpenFst Symbol Tables
+-The SymbolTable implements the mappings of labels to strings and reverse. SymbolTables are used to describe the alphabet of the input and output labels for arcs in a Finite State Transducer.
+- Dictionary: or sometimes also called vocabulary, lexicon. The list of words that exist in the language that the system can decode.
+
+
+The Table of concept
+- A Table is a collection of objects indexed by a string 
+- The basic concept is: Table<Object>, e.g. Table<int> - like C++ template
+- two ways how tables can be stored on a disk: 
+1) “scp” (script) mechanism: .scp file specifies mapping from key (the string) to filename or pipe:
+	 head -2 data/train/wav.scp
+	 trn_adg04_sr009 sph2pipe -f wav /foo/rm1_audio1/rm1/ind_trn/adg0_4/sr009.sph
+ - v tech scp muzu teda jeste s tim neco delat 
+
+2) “ark” (archive) mechanism: data is all in one file, with utterance id’s
+ - tedyvse je na jednom miste a uz s tim nic nedelam
+
+- examples of table writing: 1) ark:foo.ark Write to archive “foo.ark”
+							 2) scp:foo.scp Write to files using mapping in foo.scp
+							 3) ark,t:- Write text-form archive to stdout
+
+
+make_mfcc.sh 
+- mozno specifikovat i kolik pouzit CPU
+- kdyz se kouknes do logu tak jako prvni to vola compute-mfcc-feats
+
+compute-mfcc-feats --verbose=2 --config=conf/mfcc.conf \
+ scp:exp/make_mfcc/train/wav1.scp \
+ ark,scp:/data/mfcc/raw_mfcc_train.1.ark,/data/mfcc/raw_mfcc_train.1.scp 
+
+ First argument “scp:...” tells it to find filenames (actually commands) in [dir]/wav1.scp
+ Second argument “ark,scp:...” tells it to write an archive, and an index into the archive.
+ Archive contains (num-frames)x13 matrix of features, for each utterance.
+ - this in turn calls function src/featbin/compute-mfcc-feats.cc
+ - it assumes monoaudio - zero channels (two channels are for recording audio for use in headphones (one channel for each ear))
+
+
+PHONETISAURUS
+specifický LM a obecný a vážit je 
+
+Nainstalovat KALDI znovu celé s CUDOU (z kronos)
+- tam nechat vse bezet znovu a udelat si v tom poradek!
+
+
+view final.mat
+
+copy-matrix --binary=false final.mat - | less
+
+Gstream postup
+1) start server: python2 kaldigstserver/master_server.py --port=8880
+2) set path : . ./path
+3) start worker: python2 kaldigstserver/worker.py -u ws://localhost:8880/worker/ws/speech -c sample_worker.yaml
+4) online recognition: arecord -f S16_LE -r 16000 | python2 kaldigstserver/client.py -r 32000 -
+
+dulezite v /usr/bin/ pip install futures     !!!
+
+- jde zmenit port v client.py (nyni default na 8880)
+
+
+
+je potřeba naistalovat encoder codec do ffmpg
+
+
+Training process
+0) analog to digital signal converter (ADC)
+1) preprocessing - MFCC, CMVN
+2) Alignment of phonemes to audio (by GMM)
+3) DNN creates the acoustic model and we train it to match the clustered phonemes
+4) train WFST to transform DNN output into the desired lattices  
+
+
+cmd.sh
+- Kaldi provides a wrapper to implement parallelization so that each of the computational steps can take advantage  of the multiple processors. Kaldi’s wrapper scripts are run.pl, queue.pl, and slurm.pl
+- run.pl allows you to run the tasks on a local machine (e.g., your personal computer).
+- queue.pl allows you to allocate jobs on machines using Sun Grid Engine
+- slurm.pl allows you to allocate jobs on machines using another grid engine software, called SLURM.
+- The parallelization can be specified separately for training and decoding (alignment of new audio) in the file cmd.sh
+- http://www.kaldi-asr.org/doc/queue.html for configuration of queue
+
+
+mfcc.conf
+- contains the parameters for MFCC feature extraction
+--sample-frequency=x should be modified to fit your data
+
+kaldi/tools
+- where we install things that Kaldi depends on in various ways
+- here is also the openfst library
+
+Phonemes.txt 
+- in data/lang/phonemes.txt we have symbols #1, #2,... that are special symbols, #0 is for the epsilon transition in the graph
+- in Kaldi represented by numbers
+phones.txt
+<eps> 0
+aa 1
+ae 2
+ah 3
+ao 4
+aw 5
+
+
+train.mono.sh
+- it is good idea to do the initial training with just a subset of data, DO:
+ scripts/subset_data_dir.sh data/train 1000 data/train.1k 
+- looking to the log files (mono/logs) we see that it first applies cmvs to every speaker (cmvs.scp are saved at data/train)
+
+- after that with whole dataset. Produces alignments “equally spaced” for each utterance, accumulates 1st iteration stats. An alignment is a vector of ints (per utterance) Note: we do Viterbi training not forward-backward means we use 1-best path.
+- v update.0.log: TransitionModel::Update, objf change is 0.109912 per frame, GMM update: average 0.507126 objective
+function improvement per frame
+- after that we will align the rest of the date by align_delta.sh
+- ulozi se do mono_ali (log je align.log), dulezite: --beam=10 --retry-beam=40 (If don’t reach end-state with beam=10, retry with beam=40, then give up.)
+
+mkgraph.sh
+Compiles FSTs, one for each train utterance. Encode HMM structure for that training utterance
+
+
+decode.sh
+Decoding script generates lattices. These are rescored with different acoustic scales and all the WERs are printed out. Note: “decoding” refers to the computation where we find the best sentence given the model.
+- see decode/logs (Note: the sub-processes also print their own command-line arguments (explains first few lines))
+
+
+train_deltas.sh
+We cluster the phones to get questions. A question is just a set of phones. Would normally be a phonetic category.
+Here, just clusters based on acoustic similarity.
+
+cluster
+
+
+
+
+
+Context dependency tree
+Models (HMMs) would correspond to the leaves.
+Train a monophone system (or use previously built triphone system) to get time alignments for data.
+For each seen triphone, accumulate sufficient statistics to train a single Gaussian per HMM state
+
+
+Decoding graph 
+- takes phonemes and turns them to lattices
+- lattice is representation of the alternative word-sequences that are likely for a particular audio part
+- takes into account word probabilities n-grams
+n-gram
+- sequence of n items from a given sample of text (can be phonemes, syllables, letters, words,...)
+- n-gram of size 3 is called trigram (e.g. in phonemes we would take previous one and succeeding one), monophone is just single phoneme (MC of order 0)
+- it is a probabilistic language model for predicting the next item in a sequence it is (n-1) order Markov Chain
+
+WFST (Weighted Finite state transducer)
+- recources for learning: hbka.pdf, apsipa_09_tutorial_dixon_furui.pdf
+- prepare_lang.sh has user argument for unknown-word
+- decoding graph (HCLG.fst)
+- states and transitions between them
+- path: (a,0.1,b),(b,0.8,c)
+- transducer has both input and output (as opposed to automaton that has just input)
+e.g. (0,a:z,1),(1,b:y,1),(1,b:y,1),(1,c:x,2),(2,d:w,5) 
+- on abbcd produces zyyxw
+- weighted transducer - eacg transition has weight associated with it
+semiring - algebreic structure
+- it can reduce complexity 
+e.g. associativity x @ (y @ z) = (x @ y) @ z (@ is operator not neccesery addition)
+
+- for addition: associativity, commutativity, identity, inverse (x @ (-x) = 0), distributivity of multiplication over addition
+- for multiplication: associativity, commutativity (x @ y = y @ x), identity, inverse
+- many algebreic structures obey these properties (e.g. polynomials)
+- we call these FIELDS
+- if we take away inverse and commutativity from multiplication we get RINGS (e.g. square matrices)
+- if we further take away inverse in addition we get SEMIRING (e.g. probability)
+
+SEMIRING
+- five touple (K,+,x,0,1)
+- we can reduce all problems within a semiring to each other, if we can formulate the problem abstractly (e.g. one time we're searching for the shortest path, second time for letters that make up a word, etc.) - generic problem solving
+
+Properties of SEMIRINGS
+- some properties will help us when optimizing the WFST
+1) commutativity
+2) idemponent semiring
+...
+
+HMM
+- a model of a probability of sequence, at each time instant model is in some hidden state. Matrix of “emission probabilities”: #states by #symbols. Matrix of “transition probabilities”: #states by #states. 
+- Training the model parameters aims to maximize train-data likelihood. We want to work out the probability distribution over the states. Two approaches 1) Forward-backward algorithm 2) Viterbi algorithm.
+- each phoneme has 3-state HMM asociated with it. The model for a sentence is a concatenation of the models for its phones.
+- “monophone” is to distinguish from phonetic-context-dependent HMMs “triphones”
+
+ngram-count - udela asi tu statistiku toho language modelu a spocte vsechny ty ngramy atp. dostava parametr -order ktery mi rekne kolik tech gramu chci 
+arpa2fst - maps language model onto a finite state transducer (fst) and saves the result to G.fst
+
+HCLG.fst
+-compiled decoding graph combines the acoustic model (HC), the pronunciation dictionary (lexicon) (L), and the language model (G)
+- we use this graph for GMM-HMM decoding before we train DNN-HMM and than use it again for decoding of DNN-HMM 
+- is put together from:
+1) H.fst (The HMM FST) - H maps multiple HMM states (a.k.a. transition-ids in Kaldi-speak) to context-dependent triphones.
+2) C.fst (The context of FST) - maps triphone sequences to monophones. Expands the phones into context-dependent phones.
+3) L.fst (Phonetic dictionary FST) - The file L.fst is the Finite State Transducer form of the lexicon with phone symbols on the input and word symbols on the output.
+4) G.fst (Language model) - FSA grammar (can be built from an n-gram grammar).
+
+	graph.sh: Graph compilation
+- This script creates a fully expanded decoding graph (HCLG) that represents the language-model, pronunciation dictionary (lexicon), context-dependency, and HMM structure in our model. The output is a Finite State Transducer that has word-ids on the output, and pdf-ids on the input 
+- It put together the HCL (obtained by for example train_mono.sh) and G.fst to get HCLG.fst 
+
+words.txt
+- .csl are colon separated list of integers
+- together with phones.txt are openfst formated data 
+- Lastly, if we want to be able to read our transcriptions as an utterance of words instead of a list of intergers, we need to provide the mapping of word-IDs to words themselves. 
+- HCLG uses integer representation so we use words.txt to map it to get some meaningful result.
+The file words.txt is created by prepare_lang.sh and is a list of all words in the vocabulary, in addition to silence markers, and the disambiguation symbol “#0” (used for epsilon on the input of G.fst). 
+Each word has unique number.
+e.g. digits
+<eps> 0
+!SIL 1
+<UNK> 2
+DESET 3
+DEVĚT 4
+DVA 5
+JEDNA 6
+NULA 7
+OSUM 8
+PĚT 9
+SEDUM 10
+TŘI 11
+ČTYŘI 12
+ŠEST 13
+#0 14
+<s> 15
+</s> 16
+
+oov.txt
+- Out Of Vocabulary words
+This file has a single line with the word (not the phone!) for out of vocabulary items. In my case I’m using “<unk>” because that’s what I get from IRSTLM in my language model 
+
+silphones.csl
+- most likely in lang/phonemes
+- list of all silence phonemes
+- all *.txt files are symbol tables in openfst format (map between strings and ints)
+
+L.fst
+- lexicon in fst binary format
+- takes phonemes as input and outputs words
+
+GMM
+- it is more of a probability distribution than a model 
+- imagine 1D x-axis and several gaussians with different parameters there -> mixture of Gaussians is the linear combination of these Gaussians
+- now for 2D imagine Cantour lines for two distributions -> put them together to get mixture
+- generative process - e.g. in 2D with some prob I choos one of the Gaussians and than generate a point from it according to N(mu_k, cov_k) and repeat this many times -> the generated points will eventually "reveal" the shape if the mixture of gaussians distribution 
+- GMM gives very good probabilistic model for custering 
+- HMM training is iterative process and forced Viterbi alignment is only a part of it. First GMM distributions are initialized with a uniform values, then alignment aligns audio features to HMM states, then GMM distribution parameters are updated based on alignment. The process is repeated many times. You align, update GMM and align again. The process converges to a proper model after several iterations.
+
+Why are DNN/HMM much better than GMM/HMM is classification?
+
+- They model distributions of different classes jointly, this is so-called “distributed” learning, or, more properly “tied” learning. In GMM you model each senone separately with a separate set of GMMs, in DNN your features are classified together and distribution of senone posteriors is calculated.
+- The real nature of speech in neither Gaussian nor Markovian. Thus, GMMHMM is just an approximation to make the model tracktable and solvable. Today, with enough supervised data available, the progress of DNN including CTC, GPU hardware for optimization, etc, one can use the power of NN to train a discriminative model rather than a generative one. Moreover, NN where should to be a general function approximation thus are not limited by bias (if the number of units are unlimited).
+
+DNN acoustic model 
+- generate speech fingerprint
+- We want to be able to take some new features (i.e. audio features) and assign a class to those features (i.e. a phoneme label)
+- Input nodes which correspond to the dimensions of our audio features (think, for example, 39 input nodes for 39 MFCCs)
+- and output nodes which correspond to senome labels (think, 900 output nodes for 900 context dependent triphones (decision tree leaves))
+- The audio feature frames are fed into the input layer, the net will assign a phoneme label to a frame
+- since we already have the gold-standard label (i.e. phoneme label from our GMM-HMM alignments) for any given frame, we compare what the neural net predicted and what the real phoneme was. 
+- pozor na v decode_simple.sh aby atchoval nj s poctem speakeru v testovacich datech
+- unknown phoneme najdes v oov.txt, spravne nastav num_threads
+
+DNN decoding
+- spust skript dnn-decode.sh a pak v data/validation bude to one-best-hypothesis.txt
+- The acoustic model is used to decide, at a given frame, on what phonemic category label it is perceiving. The acoustic model chooses between different "states." For one frame, this model is shown in the state labeled [j], and then it transitions to the state labeled [ɛ] and stays in that state for five frames (continuing to have confidence that it is hearing [ɛ]), and then it transitions to [s], and stays in that state for a while.
+- HMM-GMM kinda prepares the training set for us -> we than know to which category (decision tree leave of phonemes ) frame belongs
+
+Structure of speech
+
+Speech is a continuous audio stream where rather stable states mix with dynamically changed states. In this sequence of states, one can define more or less similar classes of sounds, or phones. The acoustic properties of a waveform corresponding to a phone can vary greatly depending on many factors - phone context, speaker, style of speech and so on.
+The first part of the phone depends on its preceding phone, the middle part is stable and the next part depends on the subsequent phone. That’s why there are often three states in a phone selected for speech recognition - triphones. For computational purpose it is helpful to detect parts of triphones instead of triphones
+
+PyKaldi
+- includes Python wrappers for most functions and methods that are part of the public APIs of Kaldi and OpenFst C++ libraries
+- RNNLM - Recurrent neural network language model toolkit
+- __future__
+- with its inclusion, you can slowly be accustomed to incompatible changes or to such ones introducing new keywords
+
+
+OPlatek disertačka
+- speech input -> acoustic observation (e.g. MFCC) -> fundamental equation of ASR: decoding P(w|a) = P(a|w)*P(w)/P(a) -> chci argmax(P(a|w)*P(w))
+- P(w) je z LM a P(a|w) z akustického modelu
+- decoding word = recognizing word
+- we search for most probable sequence of words given the audio
+- acoustic features are computed on small overlapping windows of signal (one window = one frame)
+- decoding is performed frame by frame and does beam search and computes hypothesis by AM and LM - If the number of hypotheses exceeds the beam, the low probable hypotheses are pruned.
+- Speech parametrisation extracts speech-distinctive acoustic features from raw waveform. Most popular are MFCC and PLP
+- for example original vector of 400 samples per window (16000*0.025 = 400) is reduced to 39 MFF delta-deltadelta acoustic features which is quite tipical setup
+- I have x(w) which is a Fourier transform of the signal -> capstral coefficients are log(x(w)) and the 13 coefficients are the energy of this, deltas are the first order information (13 as well) and deltadelta second order information (13 as well) -> 39 together.
+- MFCC - put audio to frequency domain by discrete Fourier transform -> transform to mel scale -> put it to log scale -> do cosine transform to get spectrum -> MFCC coefficients are the amplitudes of this
+- MFCC info is stored as "scp"
+  Feature space transformation
+- usually applied in addition to MFCC preprocessing
+- are also per frame but consider also previous and succeeding frames
+- exmple of these transformations are: LDA (Linear discriminative analysis), CMVN
+- popular combination on top of the MFCC is to use LDA+MLLT instead of delta-deltadelta
+
+  Acoustic model
+
+- heart of ASR
+- rather than P(a|w) tries to estimate P(a|f1f2f3f4), where fi are phonemes, w = f1f2f3f4
+- acoustic features of a phoneme significantly depend on its context (mostly previous and following neighbours)
+- triphone - its acoustic properties vary much less than single phoneme
+           - in order to reduce number of triphones they are clustered together (e.g. k and q may have same effect on i)
+- The input is the raw audio and the outputs are acoustic features, phonemes or tri-phones. 
+- To extend the model with new words, you may extend the dictionary and the language model. Luckily, we don’t have to modify the acoustic model, since most probably the new words are also made up from the same phones that are used in everyday conversations.
+
+  HMM
+
+- hidden state are monophones or triphones and we observe samples of acoustic data
+- it is optimized by either EM or Viterbi algorithm (Kaldi)
+- GMM is used for modeling the probabilities
+- from acoustic features we get monophones/triphones and each represents a state of HMM -> optimize the alignment by Viterby
+
+  Language modeling
+- in order to make the beginning meaningful we pad the beginning by token <s> that pretends to be on the zero position -> the same for last position -> that way the probability sums up to 1
+- reduces and prioritizes the AM hypothesis
+- Markov assumption is used by assuming that only n-1 recent words are relevant for prediction of next word, we call n the order of LM
+- in trigram model the probability of word depends only on two preceeding words. Trigram is estimated by observing the frequencies of counts of the word pair C(w_(i-2),w_(i-1)) and triplet C(w_(i-2),w_(i-1),w_(i)) ->
+P(w_(i)|w_(i-1),w_(i-2)) = C(w_(i-2),w_(i-1),w_(i))/C(w_(i-2),w_(i-1)) -> this is MLE estimation
+- we can measure the quality of a language model by cross-entropy -> take a sequence of words W and assign the probability of this sequence P(W) by our LM -> compute entropy of this sequence (best possible coding) and compute cross entropy between these two -> basically how fr away from optimal are results of my LM (entropy is aproximated for sufficiently long sequence by -1/Nw * log2(P(W)))
+- corpus is chosen according to the ASR domain 
+- usually smoothing techniques have to be applied to deal with sparse-data problem 
+- increasing the n-gram number increases predictive power of a model but also the sparsity of data
+  Speech decoding
+- decoder finds the most probable word sequence by searching phone sequences corresponding to word
+- we combine LM and AC probabilities but we introduce Language model weights (wlm) is used when combining - this is fine tuned on validation set 	
+
+  Evaluation
+
+- Word error rate (WER) -> computed on one best ASR hypothesis and human transcription -> it is the minimum edit distance between these two (best is WER 0, worst WER 100 - all words are different)
+
+  Kaldi
+
+- C++ implementation that uses OpenFST library and linear algebra libraries written in Fortran
+- speech parametrisation: apply-mfcc, compute-mfcc-feats, compute-plp-feats,...
+- feature transformation: apply-cmvn, compute-cmvn-stats, acc-lda,...
+- decoders: gmm-latgen-faster, gmm-latgen-faster-parallel,...
+- evaluation: compute-wer, show-alignment,...
+  Finite State Transducers
+- implemented in OpenFST 
+- datastructure used by Kaldi
+- provides well studied graph operations used for acoustic modelling
+- decoding is a beam-search in a graph
+- decoding is performed on a decoding graph - HCLG, which is a composition of simpler FST graphs, 
+  HCLG = H o C o L o G (o is composition of graphs) - jako slozena funkce, H je nejniz
+- HCLG forms a semiring, most of the operations are done on paths (sequence of edges with weights and input and 
+  output labels) 
+  Trainig
+- first we start from a flat start and force-align the feature vectors to HMM states using utterances
+- second we retrain the triphones (in second pass we use the LDA-MLLT and in first MCFF-delta-deltadelta)
+  Online recognition
+- speed of decoding is controlled by a beam treshold
+- we want to laverage the fact that audiosignal is processed in small chunks and we can process it incrementally 
+
+CD-HMM-DNN
+- senones are tied triphone HMM states 
+- the network outputs the posterior prob over them
+
+Train monophone
+Each of the training scripts takes a similar baseline argument structure with optional arguments preceding those. The one exception is the first monophone training pass. Since a model does not yet exist, there is no source directory specifically for the model. The required arguments are always:
+- Location of the acoustic data: `data/train` 
+- Location of the lexicon: `data/lang`
+- Source directory for the model: `exp/lastmodel`
+- Destination directory for the model: `exp/currentmodel`
+steps/train_mono.sh --boost-silence 1.25 --nj 10 --cmd "$train_cmd" \
+								data/train_10k data/lang exp/mono_10k
+
+Align monophones
+Just like the training scripts, the alignment scripts also adhere to the same argument structure. The required arguments are always:
+- Location of the acoustic data: `data/train`
+- Location of the lexicon: `data/lang`  
+- Source directory for the model: `exp/currentmodel`  
+- Destination directory for the alignment: `exp/currentmodel_ali`    
+steps/align_si.sh --boost-silence 1.25 --nj 16 --cmd "$train_cmd" \
+			data/train data/lang exp/mono_10k exp/mono_ali || exit 1;
+
+Train triphones
+-As an example of what this means, assume there are 50 phonemes in our lexicon. We could have one HMM state per phoneme, but we know that phonemes will vary considerably depending on if they are at the beginning, middle or end of a word. We would therefore want at least three different HMM states for each phoneme. This brings us to a minimum of 150 HMM states to model just that variation. With 2000 HMM states, the model can decide if it may be better to allocate a unique HMM state to more refined allophones of the original phone. This phoneme splitting is decided by the phonetic questions in questions.txt and extra_questions.txt. The allophones are also referred to as subphones, senones, HMM states, or leaves.
+- so senones are the clustered triphones that sound very similarly -> these are than the labels for NN 
+steps/train_deltas.sh --boost-silence 1.25 --cmd "$train_cmd" 2000 10000 data/train data/lang exp/mono_ali exp/tri1 || exit 1;
+- align deltas: steps/align_si.sh --nj 24 --cmd "$train_cmd" data/train data/lang exp/tri1 exp/tri1_ali || exit 1;
+- train deltadelta: steps/train_deltas.sh --cmd "$train_cmd" 2500 15000 data/train data/lang exp/tri1_ali exp/tri2a || exit 1;
+
+Create smaller bootstrap training set (this all is based on http://m.mr-pc.org/work/jsalt2015lab.pdf)
+The Kaldi system bootstraps by starting with a smaller training set, which you
+create by doing: utils/subset_data_dir.sh data/train 1000 data/train_1k
+
+Build monophone model from flat start
+The first thing the system does is to build a monophone model from a “flat start” that is assume that the monophones are all equally likely and all have the same means and variances (those of the observations globally). The fact that we have transcripts to force-align to allows us to break that symmetry. It builds from the train 1k dataset: steps/train_mono.sh --nj 2 --cmd "$train_cmd" data/train_1k data/lang exp/mono0a
+- skriptem show_me.sh si muzu zobrazit alignment
+
+- after that allign the entire training set using this small bootstrapped model 
+steps/align_si.sh --nj 4 --cmd "$train_cmd" data/train data/lang exp/mono0a exp/mono0a_ali
+- use this to train triphones: steps/train_deltas.sh --cmd "$train_cmd" 300 3000 data/train data/lang exp/mono0a_ali exp/tri1
+
+- decode test set by trigram model
+: utils/mkgraph.sh data/lang exp/tri1 exp/tri1/graph steps/decode.sh --nj 2 --cmd "$decode_cmd" exp/tri1/graph data/test exp/tri1/decode
+- What the decode does (for both the monophone and triphone cases) is to run the decoding several times with different language model weights. The acoustic model scores, since they have quite a few frames in them, tend to be on a different scale than the language model scores (which are over words). So we scale the probabilities in the language model by multiplying the log probability by a weight in order to bring it into line with the range of the acoustic model scores.
+
+qrsh -cwd -j y -q 'gpu*' -l gpu=1,gpu_ram=5G -pty yes bash -l decode_single.sh
+
+
+Online decoding Kaldi
+- it is not possible to perform the normalization by CMVN so we use "moving window" normalization (by defaults it is 6 seconds)
+
+NN based online decoding
+- he adaptation philosphy is to give the neural net un-adapted and non-mean-normalized features (MFCCs, in our example recipes), and also to give it an iVector.
+- An iVector is a vector of dimension several hundred (one or two hundred, in this particular context) which represents the speaker properties.
+- Our idea is that the iVector gives the neural net as much as it needs to know about the speaker properties.
+
+
+Speech Recognition (ASR) [Andrew Senior]
+
+- there is another NLP task on top of speech recognition to deal with punctution, etc.
+- speech is a wave changing air pressure 
+- we modulate by changing the vocal tract
+- lingvists handcraft the knowledge -> we try to get rid of it and let the data speak!
+- most speech is processed 16kHz (16bits/sample)
+- we want low-dimensional representation invariant of speaker/background noise
+- do Fast Fourier Transform (FFT) of each window to heslo: h4sl.0
+ get the frequencies -> we get image representation
+- FFT is too high dimensional -> we downsample to mel scale (motivated by logarithmic properties of human hearing)
+- we reduce the dimensionality that way to let's say 40
+- this may still be too much for some systems so we do the discrete cosine transform to obtain 13 dim representation (similar to PCA) -> typically GMM use 13 dimensions 
+- frame stacking is common -> look at neighbouring frames and you can do differences between them to get deltas -> another 13 and deltadelta for second order info (curvature) another 13 -> 39 dimmension
+- DNN can stack much longer range of frames e.g. 26 in comparison to GMM (3)
+
+- speech consists of sentences (called utterances)
+- sentence is composed of words that are in turn composed of phonemes -> minimal unit that distinguishes one word from other 
+- modeling speech as probability model: we have audio represented by e.g. MFCC
+- for a given utterance we want to find the most likely word sequence
+- triphones are most common
+- split phone in three
+- context dependent phonetic clustering
+- phones relization depends on proceeding and following context 
+- but if we have 42 phones -> we have 3*42^3 (222264) context dependent phones, most of which will not be observed so we cluster similar phonemes together -> typically done by decision tree -> that reduces the number of triphones to for example commonly used 10000
+- P(a|w) = sum(P(o|c)*P(c|p)*P(p|w)), where p is phone sequence, c is state sequence 
+- WFST (Google uses it as well): audio -> frame -> state -> phoneme -> word -> utterance 
+- I stack these actions on top on each other everytime making the graph more sophisticated
+
+- modeling the acoustic probabilities
+- GMM
+- model the probability distribution of acoustic feature for each state -> sum of multiple Gaussians
+- forced alignment uses model to compute MLE between speech features and phonetic states
+- we label each state -> that way we get labels for our NN
+- for alignment I chose the most probable path
+- when decoding I do very similar things -> this time I have a huge graph of all spoken words but there are many optimization techniques to search the best path -> usually beam search is done 
+
+- DNN
+- two way how to use them, either let them learn feature representation by introducing bottleneck that reduces dimensionality and than feed it to GMM and get the probabilities
+- now almost everyone uses NN as the probabilistic models
+- it is called hybrid NN model as it uses combination of HMM-DNN
+- NN is classifier and outputs softmax across phonetic units (e.g. the 10000)
+- softmax will converge to the posterior probability over the phonetic states 
+- i-vectors help represent who the person speaking is and it does the per speaker normalization 
+- CTC - we don't need to have the alignment 
+- we can always re-use previous alignment training -> e.g. by previous NN or HMM-GMM model 
+
+- Neural transdurec system - good for online recognition
+
+Automatic speech recognition - an overview
+difficulties: different style of speech, environment (background noise,...), speaker characteristics
+- historically were first rule based systems and in 1980's began statistical models such as HMM -> 2019 and forth DNN
+- from continuous speech signal we want a discrete chunks (frames) -> extract acoustic features from them 
+- features are inputs to next component -> acoustic model
+- most languages have between 20-60 phonemes
+- why use phonemes? Let's say you have only five [f-ay-v], four [f-ow-r], one [w-ah-n] and than nine comes in that you have never seen before and you can build the [n-ay-n] from existing phonemes. You want as much data of phonemes such that you cover as many possibilities of their pronaunciation as possible
+- how do I associate a frame with given phoneme? How do I chunk how many frames correspond to particular phoneme
+- we have sequences of feature vectors that are mapped to sequences of phones
+- pronanciation model provides link between phone sequences and words -> not learned
+- 
+
+Otázky
+- Jak trénovat na clusteru? Jak funguje queue.pl? Kde je ulozeny Vystadial_CZ data?
+- Používat PyKaldi/Pytorch-Kaldi?
+- Jak na Online rozpoznávání
+- Poradit se o datasetu rozhlasu, jak nejlépe ho připravit? Bylo by možné natrénovat Vystadial - kratší a pak na tom natrénovat Český rozhlas?
+
+- eesnet 
+
+
+python kaldigstserver/worker.py -u ws://localhost:8888/worker/ws/speech -c sample_worker.yaml
+
+sscp (rsync) na pretahovani souboru 
+
+
+Weighte Finite-State Transdures in Speech Recognition - paper
+
+Cloud ASR - crolr request
+- sekat to po fixních časech http request Cloud ASR
+- batch processing 
+- rescorovani kdyz poradne
+- ziskat connector a nahradit 
+- Amazon hostovaci servis
+- gstreamer v Kaldi
+- konektor 
+- ZMQ - 
+- partial real time -> best hyp. -> final hyp.
+- Inversetext normalization 
+
+DATA
+- force alignment Vystadial -> Cesky rozhlas -> zahodit spatne alignmenty
+- nacitani dat - data sources -> zkombinovat do jednoho MFFC -> preprocesing se neuklada na disk
+-  qrsh na GPU 
+
+
+- c cloud asr 
+- v API je dobre videt, jak se to pouziva
+
+wav.scp
+- id a prikaz jak vyextrahovat 16 Khz (sox -r 16000) a pak az cestu k files
+
+
+
+https://github.com/alumae/kaldi-gstreamer-server 
+Kaldi toolkit - speech recognition engine
+kaldi-gstreamer-server - server software that passes speech signal to Kaldi and recognition results back to the client
+dictate.js - Javascript module that records speech and communicates with the server
+
+
+
+http://opus.nlpl.eu/download.php?f=EUbookshop/v2/tmx/bg-cs.tmx.gz
+
+http://opus.nlpl.eu/download.php?f=EUbookshop/v2/moses/cs-da.txt.zip
+
+Co dělat
+- poslat Vystadial_CZ
+- utridit poznamky do Latexu
+- rozhlas data utřídit
+- HMM
+
+
+
+
+
+
+Kaldigserver
+
+tutorial na instalaci: https://nixingaround.blogspot.com/2016/07/installing-kaldi-and-kaldi-gstreamer.html
+vic tutorialu tentokrat spis na pouzivani: https://libraries.io/github/jcsilva/docker-kaldi-gstreamer-server
+
+Never mind. I was using the client incorrectly. When I converted my wav file to raw PCM it started working fine.
+
+For anyone who encounters this in the future, here are the steps I took:
+
+1. Compile [kaldi-asr/kaldi@bcc71b6](https://github.com/kaldi-asr/kaldi/commit/bcc71b6) and [63b2cfd](https://github.com/alumae/gst-kaldi-nnet2-online/commit/63b2cfd)
+2. Compile the ASpIRE [HCLG.fst](https://chrisearch.wordpress.com/2017/03/11/speech-recognition-using-kaldi-extending-and-using-the-aspire-model/) and point the [worker.yml](https://gist.github.com/maxhawkins/24edbd87be0aa1601da5034acc27d7ee) to it.
+3. Start the server and pass it raw audio using client.py
+
+```shell
+python kaldigstserver/master_server.py --port=8888 &
+env GST_PLUGIN_PATH=.. python kaldigstserver/worker.py -u ws://localhost:8888/worker/ws/speech -c worker.yaml &
+sox audio.wav -r 8000 -e signed -b 16 -c 1 -t raw audio.raw remix 1
+python kaldigstserver/client.py -r 16000 audio.raw
+```
+
+
+ZSH
+take newdir - vytvori novou dir a rovnou do ni cd
+
+
+Na parsovani audia
+- https://github.com/lowerquality/gentle
+- http://gentle-demo.lowerquality.com/transcriptions/33a5b4cc/
+
+
+
+
+
+Gstreamer 
+
+vsude psat python2
+otevrit v jednom terminalu worker a v druhem server a ve tretim client!
+
+
+
+
+Stanford lecture (https://web.stanford.edu/class/cs224s/lectures/)
+
+P2)
+Fourier	analysis	
+- any wave can be represented as the (infinite) sum	of sine	waves of different frequencies (amplitude, phase)
+- FT computes spectrum of fifferent frequency components
+- spectrogram = spectrum + time dimension
+
+P3)
+The noisy channel model 
+- search throught space of all possible sentences and pick the most probable one given a waveform
+- we treat acoustic input as a sequence of individual observations O = o1o2o3...ot
+- we define sentance as a sequence of words W = w1w2w3...wn
+- W = argmax(P(W|O)) = argmax(P(O|W)*P(W)), likelihood and prior
+- I put I) feature extraction (39 MFCC features) 
+		II) P(O|W) - acoustic model (Gaussian) + lexicon/pronaunciation (HMM - what phonemes can follow each other)
+		III) language model P(W) (n-gram)
+- all together and do decoding search to get W (Viterbi)
+
+Lexicon
+- a list of words with their phoneme pronunciations - we will represent lexicon as HMM
+- start state is like initial probability in MC
+
+HMM
+- in normal MC output symbols = state symbols - e.g. it's "hot" weather and we are in a state "hot"
+- in ASR it in not the case output symbols = MFCC's (acoustic features), hidden states are phonemes
+- HMM's are the extension of MC in which the input symbols are not the same as states (we don't know in which state we are in)
+- we have Q = q1 q2 ... qn set of N states
+- transition probability matrix A = a11 a12 ... ann representing the transition probabilities between states
+- observations sequence O = o1 o2 ... oT, each drawned from vocabulary V = v1, v2, ... , vV
+- observation likelihoods B = bi(ot) (emission probabilities) each representing probability that observation ot was generated from state i 
+- q0, qF are start and final states
+- we have Markov property P(qt|q1,...,qt-1) = P(qt|qt-1)
+- evaluation - given O, howe do we efficiently compute P(O|Z) the probability of observation sequence given the model
+- decoding - how do we choose the corresponding state sequence given observation sequence that is optimal in some sense?
+- learning - how do we adjust the model parameters Z = (A,B) to maximize P(O|Z) 
+
+1) how to compute likelihood of a sequence
+- for normal MC we just follow the sequence states and multiply transition probabilities
+- for HMM we don't know what the states are 
+- given HMM Z = (A,B) and observation sequence O, determine the likelihood P(O|Z)
+Forward algorithm
+- dynamic programming approach, stores intermediate values in a table
+- compute the likelihood of the observation sequence by summing over all possible hidden state sequences -> we want P(o1,o2,...,oT,qT=qF | Z)
+- do it recursively 
+- each cell of a table represents probability alpha_t(j) = P(o1, o2,...ot, qt = j | Z)
+ex/ I have sequence 3 1 3 (#of ice-creams) and possible states H,C (hot/cold)
+- I compute the probabilities dynamically (see slide 44 P3)
+
+2) Decoding
+- given observation sequence choose the corresponding state sequence that is optimal in some sense
+- naive approach: for each state sequence Q: HHH, HHC, HCH,... compute P(O|Q) and pick the highest -> N^T
+- better is Viterbi that uses similar dynamic approach as feedforward algorithm
+- we want v_t(j) = max P(q0,q1,...q_t-1, o1,...,ot, qt=j|Z)	
+
+- we divide each phoneme in three parts (beginning, middle, end)
+- we have Q=q1,...,qN set of states corresponding to subphones
+- transition probability matrix A - taking self-loop or transition to the next subphone
+- Q and A make up a pronaunciation lexicon 
+- B = bi(ot) - observation likelihood: probability that given MFCC vector (observation ot) was generated from a subphone i
+- observation sequence is series of MFCC vectors
+
+P4
+
+3) learning
+- given a observation sequence O and set of all possible states in the HMM learn the parameters A and B
+- Baum-Welsch algorithm - special case of EM algorithm
+- does "soft alignment"
+- forced alignment: Viterbi decoding with constrained prior (transcript)
+- start with simple examples and occassionally introduce more complex ones
+
+- how to weight AM and LM
+- AM - understanding acoustic probabilities - we do this every 10 seconds but LM only every word
+- different scales and we need to weight them
+- add a language model scaling factor (LMSF) -> W = argmax(P(O|W) * P(W)^(LMSF)) (Kaldi uses AM scaling factor but the effect is the same) 
+- Viterbi is O(N^2*T), N is # of HMM states -> this is too slow, much research in speeding this up e.g. beam search 
+Beam search
+- instead of looking at all candidates everytime frame we use a treshold T and discard all states that exceed this cost (pruning)
+- Viterbi beam search uses only 5-10% of HMM states -> save of time
+- Viterbi returns best hypothesis only at the end - inpractical for online decoding - at every time inverval we output the current best hypothesis
+
+P7)
+DNN acoustic model
+- we use cross entropy loss (classification)
+
+
+
+VIMtutor
+- in normal node to delete press x
+- to append be anywhere on a line in NM and press A
+- save and quit - wq, quit without saving q!
+- to delete whole word press dw
+
+
+LDA (linear discriminant analysis)
+- serves as a dimensionality feature reduction before further classification
+- we are maximizing the separability between multiple categories
+- little bit similar to PCA but we are not interested in the most variance 
+- for example from 2D to 1D -> LDA finds the best line on which points will be projected in a way which maximizes the separability of the categories
+- two criteria: one: data is projected we want to maximize distances between the means of respective categories
+                two: we want to minimize variation of respective categories
+
+(mu_1 - mu_2)^2/(s_1^2 + s_2^2)
+
+
+
+IVectors
+- each speaker has his/her own style of speech
+- previously GMM with UBM (universal background model) or JFA (joint factor analysis)
+- they are modification of JFA
+
+
+
+CUDA-GPU
+- originally in computer games, there is lot of perspective shifts - matrix operations - effective on GPU
+- GPU has thousands of small cores suitable for parallelisation 
+- CUDA - compute unified device architecture
+- kernel function that operates in blocks (threads), each thread with unique id and CUDA organizes them into a set of blocks
+
+
+
+Streaming audio
+https://github.com/gooofy/zamia-speech#get-started-with-our-pre-trained-models -> https://goofy.zamia.org/zamia-speech/misc/kaldi_decode_live.py
+-> https://github.com/gooofy/py-nltools/blob/master/nltools/asr.py -> https://github.com/gooofy/py-kaldi-asr/blob/master/kaldiasr/nnet3.pyx
+
+to adapt KALDI to new language model
+https://pypi.org/project/kaldi-adapt-lm/
+cat utts.txt utts.txt utts.txt utts.txt utts.txt sentences-en.txt >corpus5.txt
+
+MODEL="/opt/kaldi/model/kaldi-generic-en-tdnn_sp"
+
+cut -f 1 -d ' ' ${MODEL}/data/local/dict/lexicon.txt >vocab.txt
+lmplz -o 4 --prune 0 1 2 3 --limit_vocab_file vocab.txt --interpolate_unigrams 0 <corpus5.txt >lm.arpa
+
+rm -rf work
+kaldi-adapt-lm ${MODEL} lm.arpa en-tdnn_sp
+tar xfJ work/kaldi-en-tdnn_sp-adapt.tar.xz
+
+the library is located: /usr/lib/python2.7/dist-packages/nltools
+
+
+
+
+
+
+Python tips
+
+instead of 10000000 do 10_000_000
+
+a, b, *c = (1,2,3,4,5) # set c to rest of the values
+
+decorator 
+
+def timer(func,x,y):
+	def f(x,y):
+		before = time()
+		rv = func(x,y)
+		after = time()
+		print("time is {}".format(after-before))
+		return rv
+	return f  
+
+add = timer(add) # wrap function by another function (by some behaviour)
+
+@timer                       # equals to add = timer(add)
+def add(x,y):
+	return x + y
+
+
+what are *args, **kvargs
+
+generator
+
+instead of "return" write "yield" - first one is more eager and less memory efficient, yield gives result to user as tehy ask for them 
+- they are used when the function performs some sub-task from certain starting point to certain ending point and the whole system depends on it 
+to run in that order 
+- they are mostly used in sequencing 
+
+context manager
+
+for example "with open("file.txt") as f" - has some enter and exit outcomes   
+
+
+if tríčky
+
+if args.activation == "none": activation = None
+elif args.activation == "relu": activation = tf.nn.relu
+
+for loop tríčky 
+dict(("val_test_" + metric, value) for metric, value in zip(model.metrics_names, test_logs))
+
+observations, labels = np.array(observations), np.array(labels)
+
+
+dictionary tríčky
+
+samples, counts = np.unique(samples, return_counts=True)
+ddistrib = dict(zip(samples,counts / np.sum(counts)))
+
+# find keys with zero count
+np.array([ddistrib.get(k, 0) for k in samples]) 
+
+package version: pip3 freeze | grep tensorflow
+
+
+Zamia-speech
+
+website: https://github.com/gooofy/zamia-speech
+library in computer: /usr/lib/python2.7/dist-packages/nltools/
+decoding in kaldi/streaming
+
+
+GPU training
+~/qsubmit -q gpu-\* ./decode_single.sh
+
+v train od 68 je dvojka
+
+op posilani na cluster
+rsync -avz ~/Jonas-zaloha/Translate_vypisky/Ceskyrozhlas/Dvojka/final/"$(cut -d'/' -f9 <<<"$(pwd)")"/audio_segments jkratochvil@freki.ms.mff.cuni.cz:~/personal_work_ms/00/rozhlas_data/new_data/train/70
+
+
+if [ $(stat --printf="%s" dvacet_08_10_90.wav) -ge 100 ];then echo "ano";fi
+
+unseen words Kaldi
+
+https://groups.google.com/forum/#!topic/kaldi-help/X8k9UCz-SKA
+
+in /home/jkratochvil/personal_work_ms/kaldi/egs/tedlium/s5_r2
+
+Spousteni ceskeho ASR bylo 19/20.6.
+
+
+
+
+spousteni ELITR/multi-channel-setup
+
+/Plocha/elitr/
+
+
+online2-tcp-nnet3-decode-faster --samp-freq=8000 --verbose=2 --produce-time=true --frame-subsampling-factor=3 --beam=15.0 --lattice-      beam=6.0 --acoustic-scale=1.0 --config=$online_dir/conf/online.conf $online_dir/final.mdl $graph/HCLG.fst $graph/words.txt
+
+do decode.cmd přidat gpu aby se vsechny operace vykonavaly na tom
+
+
+24.07G
+
+LM + noisy audio + domain adaptation
+
+  1 Zdroj: ČRo Plus
+   2 Datum vysílání: 10. 8. 2018
+   3 Čas vysílání: 11:11:34
+   4 Rubrika / pořad: Interview Plus
+   5 Stopáž: 25:27
+
+
+nápad: zkusit podle kontextu predikovat o jakém tématu se mluví a podle toho dávat větší váhu danému LM.
+Mít obecný LM a pak specifický podle tématu (politika, sport, ekonomie,...)
+
+speech detection?
+
+
+jak zjistit kolik gpu pouzivam - jdi na stroj kde pocitas a napis nvidia-smi
+pak ~popel/bin/gpu_allocations zjisti kolik jich tam mas
+
+
+oplatek ma run-local.log jaok uspesny log file u ternovani chain modelu
+
+máš jobs init a finish 1 a zmenu v train cmd na run.pl -TOTO FUNGUJE!!!!!
+
+virtualenv -p python3 p3    (musis byt na solu)
+
+source p3/bin/activate
+
+/lnet/ms/data/cesky-rozhlas-prepisy/data/rozhlas_data/new_data/train/76/audio_segments/dvojka_08_16_136.wav
+
+
+zapni decode.sh u sebe a pak se napoj na server
+
+nc kronos 5050 < client/dvojka_08_16_136.wav
+
+ssh -L
+
+stare
+Posilovna Brno - Fortis Training
+
+
+ssh -L 5050:localhost:5050 kronos (ten co mas v .ssh) a na nem i zapni server
+
+cat 5s.wav | nc localhost 5050
+
+~/.ssh cat in_rsa.pub >> /home/ETC/jkratochvil/.ssh/authorized
+
+
+jak se od sebe napojit na server 
+ssh jkratochvil@geri.ms.mff.cuni.cz nc 'kronos 5050' < dvacet_08_06_31.wav
+
+-c1 -r 8000 -t raw -D pulse
+
+
+online decoding
+configurace ssh jsou v ~/.ssh/config
+1) na solu v ~machacek/work/elitr/kaldi-integration/kaldi-tcp-online2-example spust ./decode.sh
+2) protuneluj se pres ssh -L 5050:localhost:5050 sol1
+### /home/machacek/work/elitr/cruise-control/multi-channel-setup
+3) spust v kaldi-asr: stdbuf -oL ../multi-channel-setup/single-track-input.sh | nc localhost 5050 | stdbuf -oL python3 receive-filter.py | stdbuf -oL ../chopper/chopper.pl
+
+stdbuf -oL single-track-input.sh | nc localhost 5050
+
+
+online decoding nově u sebe v cz_experiments spust ./decode.sh (na sol1)
+- protuneluj se přes ssh -L 5050:localhost:5050 sol1
+- pust přes - tím to i uslyšíš i uvidíš output:
+
+sox file.wav -t raw -c 1 -b 16 -r 16k -e signed-integer - | tee >(play -t raw -r 16k -e signed-integer -b 16 -c 1 -q -) |  nc -N localhost 5050
+
+- alternativně mohu spustit Python client (v Jonas_zaloha LC_ALL=en_US.UTF-8 python3 kaldi_tcp_client.py) a ten bude posilat wavku take
+
+
+
+
+
+
+
+
+to get text from XML
+
+https://xmlconverter.sonra.io/download/Pu8Wld0gyyOxgD36KXL_DDtkZOpPS5Ks/27645
+
+speaker diarization 
+
+https://github.com/kaldi-asr/kaldi/issues/2523
+https://wq2012.github.io/awesome-diarization/
+
+
+Seznam
+
+velký LM (czeng, novinove clanky, webscrapping)
+domain specific LM (adaptace modelu)
+Korpus od Any prozkoumat
+Test set pro české ASR (/lnet/ms/data/ELITR/ELITR-WGVAT-2019-Live/) - audio adaptace
+Data Augmentation
+OOV words
+Test set for ASR
+Audio data (Zprávy, PS, OVM, možná audio-knížky?)
+Hyperparametry
+Trénování vymyslet
+Speaker diarization
+spk2utt utt2spk udělat po pořadech
+
+
+
+
+u mfcc.conf jak spravne nastavit --low-freq, --high-freq
+
+spravny format pro LM
+
+soxi dvacet_08_06_194.wav | grep "Duration" | python3 getduration.py
+
+pruning u LM 
+-například kdybychom měli 4-gram tak je to obrovský počet kombinací, prunování nám řekne, že třeba z 5ti gramů vezmeme jen nejpravděpodobnějších 100K a zbytek zahodíme
+
+KENLM v /net/projects/kenlm
+
+Jak dělat semisupervised? Rozdělit wavku na malé a pak dekodovat?
+Kde v Kaldi vážit LM
+
+Remove grepped files
+ls | grep "augmented" | xargs rm -f
+
+
+
+export GOOGLE_APPLICATION_CREDENTIALS=/home/jonas/Jonas-zaloha/Translate_vypisky/Ceskyrozhlas/Google_text2speech/apikey/Parlament-ac06294931e6.json
+
+
+ffmpeg -i first.mka -i second.mka -i third.mka -i fourth.mka
+       -filter_complex
+         "[1]adelay=184000|184000[b];
+          [2]adelay=360000|360000[c];
+          [3]adelay=962000|962000[d];
+          [0][b][c][d]amix=4"
+merged.mka
+
+tady na tom odkazu:
+https://www.psp.cz/eknih/2017ps/audio/2019/06/26/
+
+
+Poznámky k textu:
+
+vymyslet v num skriptu 1. 2. ,atd.
+
+§ -> paragrafu
+písm. -> písmena
+č. -> číslo 
+/ -> lomeno
+Ing. -> Inženýrovi
+Sb. -> sbírky
+Bc. -> Bakaláři
+poslanci: -> poslanci
+omlouvají: -> omlouvají
+písm. -> písmeno
+
+END
+START
+sttm
+ettm
+***
+
+rm 
+(Schůze zahájena
+Slib poslanců  
+(Přítomní povstávají
+(Potlesk.)
+(Potlesk z pravé části
+(Nehlasuje se.)
+sttm - celý řádek
+
+
+
+
+cat logfile | sed 's/|/ /' | awk '{print $1, $8}'
+qsub -cwd -j y -q 'gpu*' -l gpu=3,gpu_cc_min3.5=1,gpu_ram=10G -pe smp 3 single.sh
+
+
+
+PYTHONIOENCODING=utf-8 python3 script.py
+
+
+LM interpolation
+https://github.com/kaldi-asr/kaldi/blob/master/egs/iban/s5/local/prepare_lm.sh
+
+qrsh -q 'gpu*' -l gpu=1,gpu_ram=8G -pty yes bash -l
+
+GPU:
+qsub -cwd -j y -q 'gpu*' -l gpu=3,gpu_cc_min3.5=1,gpu_ram=10G -pe smp 3
+
+Memory:
+/opt/mfutils/mgmt quota
+	 
+Merkur2 speech
+
+./configure --shared --mathlib=ATLAS
+
+Multiple LMs
+https://github.com/kaldi-asr/kaldi/blob/master/egs/iban/s5/local/prepare_lm.sh
+
+mix more LMs
+http://www.speech.sri.com/projects/srilm/manpages/ngram.1.html
+
+OpenSLR
+http://www.openslr.org/17/
+
+steps/make_fbank.sh
+
+
+Tady mozna ukazka toho compute_vad_decision.sh:
+https://github.com/kaldi-asr/kaldi/blob/master/egs/sre16/v2/run.sh
+
+
+Diarization Kaldi
+1) ffmpeg -i bergamot_2019_05_09_20.mp3 -ar 8000 -acodec pcm_u8 -ac 1 bergamot_2019_05_09_20_tmp.wav
+
+2) sox bergamot_2019_05_09_20_tmp.wav -b 16 bergamot_2019_05_09_20.wav
+
+3) udělat wav.scp, utt2spk spk2utt soubory
+
+4) pustit 
+
+5) awk '{print $1, $2}' segments> utt2spk
+
+6) sort -k2,2 -k4n <rttm
+
+
+https://github.com/amsehili/auditok
+
+good description of uncleared data
+https://ai-zahran.github.io/blog.html
+
+
+
+
+
+echo "${filename}_${i} $pwav" >> $locdata/$s/wav.scp
+echo "${filename}_${i} $filename" >> $locdata/$s/utt2spk
+echo "$filename ${filename}_${i}" >> $locdata/$s/spk2utt
+echo "${filename}_${i} $trn" >> $locdata/$s/trans.txt
+# Ignoring gender -> label all recordings as male
+echo "$filemame M" >> $locdata/spk2gender
+echo "$trn" >> $locdata/corpus.txt
+
+
+
+./configure --shared --mathlib=MKL
+
+
+awk '{print $1, $1}' wav.scp> utt2spk
+
+2019-06-14_Elitr_RemoteMeeting.wav				      elitr_kickoff_day2_480px_14b_100q_30fps-webcam.16k2.wav
+elitr-adobe-connect-fair-preparations_480px_1.4b_100q_30fps.16k2.wav  elitr-pexip_2019-04-16T13_07_36Z.16k2.wav
+elitr_kickoff_day1_480px_14b_100q_30fps-webcam.16k2.wav
+
+
+
+difference of two text files to find bad audios
+
+diff --new-line-format="" --unchanged-line-format="" <(sort ../train/wav.scp) <(sort wav.scp) > bad_ones.txt
+
+
+https://chrisearch.wordpress.com/2017/03/11/speech-recognition-using-kaldi-extending-and-using-the-aspire-model/
+
+
+
+
+What requires GPU:
+- For CPU training take off --gpu
+- Run on Kronos with cmd --gpu x but submit only through qsub -cwd -j y -pe smp x
+
+
+
+
+
+
+./configure --enable-static --enable-pdt --enable-far --enable-const-fsts --enable-compact-fsts --enable-lookahead-fsts --enable-ngram-fsts
+
+
+
+
+GIT
+
+1) git init .
+2) git remote add origin https://github.com/jonaskratochvil/MICSR.git
+3) git add file
+4) git commit -m "adding a file"
+5) git push -v origin master
+
+
+
+Poznámky u trénování:
+
+Nelé na kronosu přes qsub -cwd -j y -pe smp 10 single.sh
+
+U stage 15 to spadne takže submitni přes qsub -cwd -j y -q 'gpu*' -l gpu=1,gpu_cc_min3.5=1,gpu_ram=2G -pe smp 10
+
+Pak to znovu spadne u 16 tak submitni přes qsub -cwd -j y -pe smp 10 single.sh s tím že v cmd je počet gpu rovný num_jobs final
+
+
+
+
+Přesouvání souborů
+
+- něco máš v home (LM, ...)
+- PS a OV si vymazal - najdeš je v /net/me/merkur2/vystadial/cs/....
+- vystadial/PS zase u sebe v personal_work_ms
+- vystadial stáhni znovu je nějaký divný (má jen 2G)
+
+
+
+
+
+1024925133/6100 s VS 909
+
+
+
+1750
+
+
+
+
+
+
+
+
+
+Total slots for the job: qstat -g c
+
+monitor job
+qstat -f -j

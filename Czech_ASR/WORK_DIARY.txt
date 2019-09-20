@@ -1,0 +1,51 @@
+First two weeks
+1) completed Cesky rozhlas dataset (256h)
+2) dataaugmentation script (TODO more randomization)
+    - located in dvacet/final/dvacet_08_06/audio_segments
+3) training on subset of data Kaldi model
+    - modification in numtotext.py script, add silence to beginning and end
+4) domain specific test set for both ASR and LM
+5) LM text data preparation for both domain (Europarlament) and general (czeng + upper + news)
+6) Poslanecka snemovna data gathering pipeline (TODO second part of segmentation, get all data)
+7) Mixing domain specific LM's
+
+8) made githud page for project
+9) segmentation of long files with nnet3
+
+Extend the lexicon with the words from Europarlament!
+Use VUT word to phonemes script
+Semisupervised learning - I already have the transcriptions so that may help the system
+
+in WSJ recepy use the silence probability estimations?
+
+
+1) rozsireni lexikonu podle skriptu dole
+Use G2P to train model (https://chrisearch.wordpress.com/2017/03/11/speech-recognition-using-kaldi-extending-and-using-the-aspire-model/)
+  - you need a dictionary for that - maybe try to obtain it on UFAL (?)
+
+2) Vyhodit ty data ktera vypadnou po clean skriptu, nechat texty do LM!! Pak udělat semisupervised learning na ty nahrávky, tedy přihodit je do treonovani
+s tima vysledkama dekodovani
+https://github.com/kaldi-asr/kaldi/blob/master/egs/fisher_english/s5/local/semisup/chain/tuning/run_tdnn_100k_semisupervised_1a.sh
+
+3) steps/cleanup/segment_long_utt_nnet3.sh
+- udělat to iterativně, nejdřív natrénovat pořádny nnet3 model na co nejvíc datech, pak vzít ty 15 minutové úseky z poslanecké sněmovny a hodit to
+do skriptu nahoře, ktery bere na vstup tu nnet3 directory. Ten vyhodi segmenty odpovidajicich textu - to dat znovu do trenovani a opakovat to cele dokud se nebude zmensovat WER
+
+4) LM model adaptace porat zkouset
+
+5) Model ticha - vem si třeba 30 minut nahrávku a tam označ to ticho _SIL_
+
+
+
+TODO
+-speaker diarization
+-generate different silences and silence sizes to append to all data
+-augmentation can be even 2-3 x the data
+-3 LM a testovat jejich vahy (transcripty, domain, general)
+- todo some more elaborate noise to our application
+- in mercury2/vystadial/cs/... are data of OVM, PS and SAZKA (noisy phone conversations from car) that we may use. Run modified data_split.sh on them and than concatenate all to one big wav.scp, text, spk2utt,...
+- make_fbank.sh
+steps_fbank.sh
+
+acoustic adaptation - let speaker speak for some number of minutes and than adapt the model to him/her and switch the models on fly
+

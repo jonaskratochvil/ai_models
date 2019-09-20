@@ -1,39 +1,14 @@
 #!/bin/bash
 # -*- coding: utf-8 -*-
-# Copyright (c) 2013, Ondrej Platek, Ufal MFF UK <oplatek@ufal.mff.cuni.cz>
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#  http://www.apache.org/licenses/LICENSE-2.0
-#
-# THIS CODE IS PROVIDED *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
-# WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-# MERCHANTABLITY OR NON-INFRINGEMENT.
-# See the Apache 2 License for the specific language governing permissions and
-# limitations under the License. #
-#
-# Makes train/test splits
-# local/voxforge_data_prep.sh --nspk_test ${nspk_test} ${SELECTED} || exit 1
-# create files: (TYPE=train|test)
-#   a) ${TYPE}_trans.txt: ID transcription capitalized! No interputction
-#   b) ${TYPE}_wav.scp: ID path2ID.wav
-#   c) $TYPE.utt2spk: ID-recording ID-speaker
-#   s) $TYPE.spk2utt
-#   e) $TYPE.spk2gender  all speakers are male
+
 # we have ID-recording = ID-speaker
 
 # The vystadial data are specific by having following marks in transcriptions
 # _INHALE_
 # _LAUGH_
-# _EHM_HMM_
 # _NOISE_
 # _EHM_HMM_
 # _SIL_
-
-# renice 20 $$
 
 every_n=1
 
