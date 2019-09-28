@@ -1,21 +1,4 @@
-# MICSR (MICSR IS CZECH SPEECH RECOGNISER)
-
-In this repository code for the Czech automatic speech recognition system is hosted. We also provide scripts for various dataset preparation techniques as well as language model and dictionary extensions. We use Kaldi toolkit as the main tool.
-
-Table of Contents
-=================
-
-* [MICSR] (#MICSR)
-* [Table of Contents] (#Table-of-Contents)
-* [Data preparations] (#Data-preparation)
-* [ASR theory] (#ASR-theory)
-* [Run scripts overview] (#run-script)
-* [Language model and dictionary extension] (#LM-and-dict-extension)
-* [Online setup] (#Online-setup)
-* [Testing] (#Testing)
-* [Practical tips for training] (#practical-tips)
-* [Speaker diarization] (#speaker-diarization)
-* [TODO] (#TODO)
+MICSR (MICSR IS CZECH SPEECH RECOGNISER)
 
 The main run script is in MICSR.sh, it contains full data preparation (including rewriting text to digits and other preprocessing things). Currently the setup is made in a way that it normalizes each utterance individually.
 Theere is also option to perform data augmentation by adding a RIR noises that should make model more robust in large room conditions.
