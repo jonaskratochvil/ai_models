@@ -17,6 +17,22 @@ Table of Contents
 * [Speaker diarization] (#speaker-diarization)
 * [TODO] (#TODO)
 
+Data preparations
+=================
+To train ASR models we need both the audio file as well as the corresponding text transcription. Moreover it is important to have audio files no longer than 
+10-15 seconds with the corresponding text.
+`./import_librispeech.py`
+Provide two ways first model and language free ~ less accuracy
+
+Second using pre-trained model ~ Czech language more accurate maybe (?)
+
+
+
+
+Testing scripts for Levenstein -> loop over the test directory and compute for each individualy 
+- lattice to text
+
+
 The main run script is in MICSR.sh, it contains full data preparation (including rewriting text to digits and other preprocessing things). Currently the setup is made in a way that it normalizes each utterance individually.
 Theere is also option to perform data augmentation by adding a RIR noises that should make model more robust in large room conditions.
 The lexicon consisns od 2.3 M words and LM was trained by interpolation of 65M LM and domain specific ~1M words on a dev set. There is also ready pipeline for segmenting long utterance audios
